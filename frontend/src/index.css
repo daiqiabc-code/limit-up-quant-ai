@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0a0a12; color: #d4d4e8; font-family: 'Inter', 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #0a0a12; }
+::-webkit-scrollbar-thumb { background: #1e1e3a; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #2a2a4a; }
+
+@layer components {
+  .kpi-card {
+    @apply bg-terminal-card border border-terminal-border rounded-lg p-4 hover:border-terminal-accent/30 transition-all duration-200;
+  }
+  .kpi-value {
+    @apply text-2xl font-bold font-mono;
+  }
+  .kpi-label {
+    @apply text-xs text-terminal-dim mt-1;
+  }
+  .panel {
+    @apply bg-terminal-panel border border-terminal-border rounded-lg;
+  }
+  .panel-header {
+    @apply px-4 py-3 border-b border-terminal-border flex items-center justify-between;
+  }
+  .panel-body { @apply p-4; }
+  .btn-primary {
+    @apply bg-terminal-accent/15 text-terminal-accent border border-terminal-accent/30 px-3 py-1.5 rounded text-sm hover:bg-terminal-accent/25 transition-colors;
+  }
+  .badge-up { @apply text-red-400 bg-red-400/10 border border-red-400/20 rounded px-1.5 py-0.5 text-xs; }
+  .badge-down { @apply text-green-400 bg-green-400/10 border border-green-400/20 rounded px-1.5 py-0.5 text-xs; }
+  .grade-s { @apply bg-green-400/15 text-green-400 font-bold; }
+  .grade-a { @apply bg-blue-400/15 text-blue-400 font-bold; }
+  .grade-b { @apply bg-yellow-400/15 text-yellow-400 font-bold; }
+  .grade-c { @apply bg-orange-400/15 text-orange-400 font-bold; }
+  .grade-d { @apply bg-red-400/15 text-red-400 font-bold; }
+  .data-table th {
+    @apply text-left text-xs text-terminal-dim font-medium uppercase tracking-wider px-3 py-2 bg-terminal-card;
+  }
+  .data-table td {
+    @apply px-3 py-2 text-sm border-b border-terminal-border/50;
+  }
+  .data-table tr:hover td { @apply bg-terminal-accent/5; }
+}

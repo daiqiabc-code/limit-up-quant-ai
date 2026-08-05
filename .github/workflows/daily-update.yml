@@ -1,0 +1,81 @@
+name: Daily Limit-Up AI Update
+
+on:
+  schedule:
+    # 每天北京时间 16:10 (UTC 8:10) 收盘后自动运行
+    - cron: '10 8 * * 1,2,3,4,5'
+  workflow_dispatch:  # 允许手动触发
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+env:
+  PYTHONUNBUFFERED: 1
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python deps
+        run: |
+          pip install akshare scikit-learn numpy uvicorn fastapi
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend deps
+        run: cd frontend && npm ci
+
+      - name: Start backend
+        run: |
+          cd backend
+          python -m uvicorn app.main:app --host 0.0.0.0 --port 8008 &
+          # wait for health check
+          for i in $(seq 1 30); do
+            curl -s http://localhost:8008/api/health && break
+            sleep 2
+          done
+
+      - name: Generate snapshots
+        run: |
+          cd backend
+          python -m scripts.make_snapshot --limit-detail 80
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'frontend/dist'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
