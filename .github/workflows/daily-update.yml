@@ -54,32 +54,10 @@ jobs:
       - name: Install frontend deps
         run: cd frontend && npm install
 
-      - name: Start backend & generate snapshots
+      - name: Generate data (no backend needed)
         run: |
           cd backend
-          python -m uvicorn app.main:app --host 0.0.0.0 --port 8008 > /tmp/backend.log 2>&1 &
-          BACKEND_PID=$!
-          echo "Backend PID: $BACKEND_PID"
-
-          # wait for health check
-          for i in $(seq 1 30); do
-            if curl -s -o /dev/null -w "%{http_code}" http://localhost:8008/api/health | grep -q 200; then
-              echo "Backend ready (attempt $i)"
-              break
-            fi
-            sleep 2
-          done
-
-          # verify backend is up
-          if ! curl -s http://localhost:8008/api/health; then
-            echo "=== BACKEND FAILED TO START ==="
-            cat /tmp/backend.log
-            exit 1
-          fi
-
-          # generate snapshots
-          python -m scripts.make_snapshot --limit-detail 60
-          kill $BACKEND_PID 2>/dev/null || true
+          python -m scripts.ci_build
 
       - name: Build frontend
         run: |
