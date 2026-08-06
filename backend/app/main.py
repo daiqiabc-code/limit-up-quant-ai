@@ -1,6 +1,6 @@
 """Limit-Up Quant AI — FastAPI 主应用入口。
 
-启动方式：cd backend && python -m uvicorn app.main:app --host 0.0.0.0 --port 8007 --reload
+启动方式：cd backend && python -m uvicorn app.main:app --host 0.0.0.0 --port 8008 --reload
 """
 from __future__ import annotations
 

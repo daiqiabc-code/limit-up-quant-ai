@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     DAILY_COLLECT_TIME: str = "15:10"
 
     HOST: str = "0.0.0.0"
-    PORT: int = 8007
+    PORT: int = 8008
 
     class Config:
         env_file = ".env"
