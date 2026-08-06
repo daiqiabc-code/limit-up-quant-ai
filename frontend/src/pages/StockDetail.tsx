@@ -1,176 +1,318 @@
 import { useEffect, useState } from 'react';
-import { api, StockDetail } from '../lib/api';
-import { ArrowUp, ArrowDown } from 'lucide-react';
-import ReactECharts from 'echarts-for-react';
+import {
+  api,
+  type RankingSnapshot,
+  type LimitUpSnapshot,
+  type HealthPoolSnapshot,
+  type ScoredRecord,
+  type LimitUpRecord,
+  type StrategyEntry,
+} from '../lib/api';
+import { DualGradeBadge } from '../components/GradeBadge';
+import ScoreBar from '../components/ScoreBar';
 
-export default function StockDetailPage({ code }: { code: string }) {
-  const [data, setData] = useState<StockDetail | null>(null);
+/** 维度中文映射（与 ScoreBar 一致） */
+const DIM_CN: Record<string, string> = {
+  board_strength: '连板强度',
+  seal_quality: '封单质量',
+  sector_position: '板块地位',
+  theme_freshness: '题材新鲜度',
+  volume_health: '量价健康',
+};
+
+/** 根据命中的 active_strategy 在策略池中查找对应条目 */
+function findStrategy(
+  pool: HealthPoolSnapshot | null,
+  activeStrategy: string | undefined,
+): StrategyEntry | undefined {
+  if (!pool) return undefined;
+  if (activeStrategy) {
+    return (
+      pool.pool.find(p => p.style === activeStrategy) ||
+      pool.pool.find(p => p.version === activeStrategy)
+    );
+  }
+  return (
+    pool.pool.find(p => p.version === pool.active_id) ||
+    pool.pool.find(p => p.style === pool.active_style)
+  );
+}
+
+export default function StockDetail({ code }: { code: string }) {
+  const [ranking, setRanking] = useState<RankingSnapshot | null>(null);
+  const [limitup, setLimitup] = useState<LimitUpSnapshot | null>(null);
+  const [healthPool, setHealthPool] = useState<HealthPoolSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!code) return;
     setLoading(true);
-    api.detail(code).then(setData).finally(() => setLoading(false));
+    setError(null);
+    Promise.all([api.ranking(), api.limitup(), api.healthPool()])
+      .then(([r, l, h]) => {
+        setRanking(r);
+        setLimitup(l);
+        setHealthPool(h);
+      })
+      .catch(e => setError(e?.message || '数据加载失败'))
+      .finally(() => setLoading(false));
   }, [code]);
 
-  if (!code) return <div className="p-6 text-terminal-dim">请从涨停列表或AI排行榜点击选择股票</div>;
-  if (loading) return <div className="flex items-center justify-center h-64 text-terminal-dim">加载中...</div>;
-  if (!data) return null;
+  if (!code) {
+    return <div className="p-6 text-terminal-dim">请从涨停列表或 AI 排行榜点击选择股票</div>;
+  }
+  if (loading) {
+    return <div className="flex items-center justify-center h-64 text-terminal-dim">加载中...</div>;
+  }
+  if (error) {
+    return <div className="p-6 text-red-400">数据加载失败：{error}</div>;
+  }
 
-  const s = data.stock;
-  const r = data.limit_up_record;
-  const p = data.prediction;
+  const record: ScoredRecord | undefined = ranking?.ranking.find(r => r.code === code);
+  const limitRecord: LimitUpRecord | undefined = limitup?.records.find(r => r.code === code);
+  const strategy = findStrategy(healthPool, ranking?.active_strategy);
 
-  // K线 option
-  const dates = data.quotes.map(q => q.trade_date.slice(5));
-  const ohlc = data.quotes.map(q => [q.open, q.close, q.low, q.high]);
-  const vols = data.quotes.map(q => q.volume);
+  // ranking 中未找到该股票
+  if (!record) {
+    return (
+      <div className="p-6 space-y-4">
+        <div className="panel p-8 text-center">
+          <div className="text-terminal-dim text-lg">未找到该股票的AI评分数据</div>
+          <div className="text-xs text-terminal-dim/70 mt-2 font-mono">{code}</div>
+        </div>
+        {limitRecord && (
+          <div className="panel">
+            <div className="panel-header"><h2 className="text-sm font-semibold">涨停基础信息</h2></div>
+            <div className="panel-body grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div><div className="text-xs text-terminal-dim">名称</div><div className="font-medium">{limitRecord.name}</div></div>
+              <div><div className="text-xs text-terminal-dim">涨停价</div><div className="font-mono text-red-400">{limitRecord.limit_price.toFixed(2)}</div></div>
+              <div><div className="text-xs text-terminal-dim">封单额</div><div className="font-mono text-red-400">{(limitRecord.fd_amount / 1e4).toFixed(2)}亿</div></div>
+              <div><div className="text-xs text-terminal-dim">连板</div><div className="font-mono text-red-400">{limitRecord.fb_count}板</div></div>
+              <div><div className="text-xs text-terminal-dim">所属行业</div><div>{limitRecord.industry || '—'}</div></div>
+              {limitRecord.reason && (
+                <div className="col-span-2 md:col-span-4"><div className="text-xs text-terminal-dim">涨停原因</div><div className="text-sm">{limitRecord.reason}</div></div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
-  const chartOption = {
-    backgroundColor: '#0a0a12',
-    grid: [{ left: '8%', right: '3%', top: '8%', height: '55%' }, { left: '8%', right: '3%', top: '72%', height: '18%' }],
-    xAxis: [{ type: 'category', data: dates, axisLine: { lineStyle: { color: '#1e1e3a' } }, axisLabel: { color: '#6b6b80', fontSize: 10 } },
-      { type: 'category', gridIndex: 1, data: dates, axisLabel: { show: false }, axisLine: { lineStyle: { color: '#1e1e3a' } } }],
-    yAxis: [{ type: 'value', scale: true, axisLine: { lineStyle: { color: '#1e1e3a' } }, axisLabel: { color: '#6b6b80', fontSize: 10 }, splitLine: { lineStyle: { color: '#1e1e3a', type: 'dashed' } } },
-      { type: 'value', gridIndex: 1, axisLabel: { color: '#6b6b80', fontSize: 9 } }],
-    series: [
-      { type: 'candlestick', data: ohlc, itemStyle: { color: '#ff5252', color0: '#00e676', borderColor: '#ff5252', borderColor0: '#00e676' } },
-      { type: 'bar', xAxisIndex: 1, yAxisIndex: 1, data: vols, itemStyle: { color: (params: any) => data.quotes[params.dataIndex]?.close >= data.quotes[params.dataIndex]?.open ? '#ff525244' : '#00e67644' } },
-    ],
-    tooltip: { trigger: 'axis' },
-  };
+  const exp = record.explain;
+  const price = record.price ?? limitRecord?.price;
+  const boards = record.boards ?? limitRecord?.fb_count ?? 0;
+  const industry = record.industry || limitRecord?.industry || '—';
+  const name = record.name || limitRecord?.name || code;
+  const maxContrib = Math.max(
+    1,
+    ...exp.top_positive.map(i => Math.abs(i.contribution)),
+    ...exp.top_negative.map(i => Math.abs(i.contribution)),
+  );
 
   return (
     <div className="p-6 space-y-6">
       {/* 头部信息 */}
-      {s && (
-        <div className="panel p-4 flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">{s.name} <span className="text-sm text-terminal-dim font-mono">{s.code}</span></h1>
-            <div className="flex gap-3 mt-1 text-xs text-terminal-dim">
-              <span>{s.exchange} · {s.board}</span><span>{s.industry}</span>
-              <span>{s.concepts?.join(' / ')}</span>
+      <div className="panel">
+        <div className="panel-body flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-2xl font-bold">{name}</h1>
+              <span className="text-sm text-terminal-dim font-mono">{record.code}</span>
+              <span className="text-xs text-terminal-dim">#{record.rank}</span>
             </div>
-            {r && (
-              <div className="flex gap-4 mt-2">
-                <span className="badge-up">+{r.pct_chg}%</span>
-                <span className="text-sm"><span className="text-terminal-dim">连板</span> <b>{r.boards}板</b></span>
-                <span className="text-sm"><span className="text-terminal-dim">封板</span> {r.seal_time}</span>
-                <span className="text-sm"><span className="text-terminal-dim">换手</span> {r.turnover.toFixed(1)}%</span>
-              </div>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-terminal-dim">
+              <span>最新价 <span className="text-terminal-text font-mono">{price != null ? price.toFixed(2) : '—'}</span></span>
+              <span>连板 <span className="text-red-400 font-bold">{boards}板</span></span>
+              <span>行业 <span className="text-terminal-text">{industry}</span></span>
+              {record.concepts && record.concepts.length > 0 && (
+                <span>题材 <span className="text-terminal-text">{record.concepts.join(' / ')}</span></span>
+              )}
+            </div>
+            {limitRecord?.reason && (
+              <div className="mt-2 text-xs"><span className="text-terminal-dim">涨停原因：</span>{limitRecord.reason}</div>
             )}
           </div>
-          <div className="text-right space-y-2">
-            <div className="text-sm text-terminal-dim">流通市值 <span className="text-terminal-text">{s.float_mv}亿</span></div>
-            <div className="text-sm text-terminal-dim">总市值 <span className="text-terminal-text">{s.total_mv}亿</span></div>
-            {r && <div className="text-sm text-terminal-dim">主力净流入 <span className={r.main_net_inflow >= 0 ? 'text-red-400' : 'text-green-400'}>{(r.main_net_inflow / 1e8).toFixed(2)}亿</span></div>}
+          <div className="flex flex-col items-start md:items-end gap-3 shrink-0">
+            <DualGradeBadge absGrade={record.abs_grade} relGrade={record.rel_grade} percentile={record.percentile} />
+            <div className="text-left md:text-right">
+              <div className="text-xs text-terminal-dim">综合得分</div>
+              <div className="text-4xl font-bold font-mono text-terminal-accent leading-none">{record.total_score.toFixed(1)}</div>
+            </div>
           </div>
         </div>
-      )}
+      </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        {/* K线图 */}
-        <div className="col-span-2 panel">
-          <div className="panel-header"><h2 className="text-sm font-semibold">K线图</h2></div>
-          <div className="panel-body">
-            <ReactECharts option={chartOption} style={{ height: 400 }} />
-          </div>
-        </div>
-
-        {/* AI 分析报告 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* 五维分项得分 */}
         <div className="panel">
-          <div className="panel-header"><h2 className="text-sm font-semibold">AI 分析报告</h2></div>
-          <div className="panel-body space-y-3 text-sm">
-            {p ? (
-              <>
-                <div className="flex items-center gap-2">
-                  <span className="text-lg font-bold">{p.name}({p.code})</span>
-                  <span className={`px-2 py-0.5 rounded text-xs ${p.grade === 'S' ? 'grade-s' : p.grade === 'A' ? 'grade-a' : 'grade-b'}`}>{p.grade}级</span>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div><span className="text-terminal-dim">涨停概率</span> <span className="font-bold text-terminal-accent">{(p.prob_limit_up * 100).toFixed(1)}%</span></div>
-                  <div><span className="text-terminal-dim">上涨概率</span> <span className="font-bold">{(p.prob_up * 100).toFixed(1)}%</span></div>
-                  <div><span className="text-terminal-dim">预期收益</span> <span className="text-red-400">+{p.expected_return}%</span></div>
-                  <div><span className="text-terminal-dim">预期回撤</span> <span className="text-green-400">-{p.expected_drawdown}%</span></div>
-                </div>
-                <div className="border-t border-terminal-border pt-2">
-                  <div className="text-xs text-terminal-dim mb-1">建议：<span className="text-terminal-accent font-bold">{p.advice}</span></div>
-                  <div className="text-xs text-terminal-dim mb-1">风险等级：<span className={p.risk_level === '低' ? 'text-green-400' : 'text-yellow-400'}>{p.risk_level}</span></div>
-                </div>
-                {p.sub_scores && (
-                  <div className="space-y-1">
-                    <div className="text-xs text-terminal-dim font-medium">各维度评分</div>
-                    {Object.entries(p.sub_scores as Record<string, number>).map(([k, v]) => (
-                      <div key={k} className="flex items-center gap-2">
-                        <span className="text-xs w-20">{k}</span>
-                        <div className="flex-1 h-1.5 bg-terminal-border rounded-full">
-                          <div className="h-full bg-terminal-accent rounded-full" style={{ width: `${v / 20 * 100}%` }} />
-                        </div>
-                        <span className="text-xs font-mono w-8">{v}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {p.reasons && (
-                  <div className="border-t border-terminal-border pt-2 space-y-1">
-                    <div className="text-xs text-terminal-dim font-medium">核心论据</div>
-                    {(p.reasons as string[]).map((rs, i) => (
-                      <div key={i} className="text-xs flex items-start gap-1"><span className="text-terminal-accent">•</span> {rs}</div>
-                    ))}
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="text-terminal-dim">暂无AI分析数据</div>
+          <div className="panel-header"><h2 className="text-sm font-semibold">五维分项得分</h2></div>
+          <div className="panel-body">
+            <ScoreBar scores={record.sub_scores} />
+            <div className="mt-4 pt-3 border-t border-terminal-border flex flex-wrap gap-x-4 gap-y-1 text-xs text-terminal-dim">
+              {record.seal_time && <span>封板时间 <span className="text-terminal-text font-mono">{record.seal_time}</span></span>}
+              {record.break_times != null && <span>炸板次数 <span className="text-terminal-text font-mono">{record.break_times}</span></span>}
+              {record.limit_type && <span>涨停类型 <span className="text-terminal-text">{record.limit_type}</span></span>}
+              {record.turnover != null && <span>换手率 <span className="text-terminal-text font-mono">{record.turnover.toFixed(2)}%</span></span>}
+            </div>
+          </div>
+        </div>
+
+        {/* 涨停基础信息 */}
+        <div className="panel">
+          <div className="panel-header"><h2 className="text-sm font-semibold">涨停基础信息</h2></div>
+          <div className="panel-body grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+            <div>
+              <div className="text-xs text-terminal-dim">涨停价</div>
+              <div className="font-mono text-red-400">{limitRecord ? limitRecord.limit_price.toFixed(2) : '—'}</div>
+            </div>
+            <div>
+              <div className="text-xs text-terminal-dim">封单额</div>
+              <div className="font-mono text-red-400">{limitRecord ? `${(limitRecord.fd_amount / 1e4).toFixed(2)}亿` : '—'}</div>
+            </div>
+            <div>
+              <div className="text-xs text-terminal-dim">连板数</div>
+              <div className="font-mono text-red-400">{boards}板</div>
+            </div>
+            {record.float_mv != null && (
+              <div>
+                <div className="text-xs text-terminal-dim">流通市值</div>
+                <div className="font-mono">{record.float_mv.toFixed(2)}亿</div>
+              </div>
+            )}
+            {record.amount != null && (
+              <div>
+                <div className="text-xs text-terminal-dim">成交额</div>
+                <div className="font-mono">{(record.amount / 1e8).toFixed(2)}亿</div>
+              </div>
+            )}
+            <div>
+              <div className="text-xs text-terminal-dim">所属行业</div>
+              <div>{industry}</div>
+            </div>
+            {limitRecord?.reason && (
+              <div className="col-span-2 md:col-span-3">
+                <div className="text-xs text-terminal-dim">涨停原因</div>
+                <div className="text-sm">{limitRecord.reason}</div>
+              </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* 龙虎榜 & 新闻 */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="panel">
-          <div className="panel-header"><h2 className="text-sm font-semibold">龙虎榜</h2></div>
-          <div className="panel-body">
-            {data.dragon_tiger && data.dragon_tiger.length > 0 ? (
-              <table className="data-table w-full">
-                <thead><tr><th>席位</th><th>类型</th><th>标签</th><th>买入</th><th>卖出</th><th>净额</th></tr></thead>
-                <tbody>
-                  {data.dragon_tiger.map((d, i) => (
-                    <tr key={i}>
-                      <td className="text-xs">{d.seat}</td>
-                      <td className="text-xs">{d.seat_type}</td>
-                      <td className="text-xs">{d.tag || '—'}</td>
-                      <td className="text-xs text-red-400">{(d.buy / 1e8).toFixed(2)}亿</td>
-                      <td className="text-xs text-green-400">{(d.sell / 1e8).toFixed(2)}亿</td>
-                      <td className={d.net >= 0 ? 'text-red-400 text-xs' : 'text-green-400 text-xs'}>{(d.net / 1e8).toFixed(2)}亿</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : <div className="text-sm text-terminal-dim">当日未上龙虎榜</div>}
-          </div>
-        </div>
-
-        <div className="panel">
-          <div className="panel-header"><h2 className="text-sm font-semibold">相关新闻</h2></div>
-          <div className="panel-body">
-            {data.news && data.news.length > 0 ? (
+      {/* 因果解释 */}
+      <div className="panel">
+        <div className="panel-header"><h2 className="text-sm font-semibold">因果解释</h2></div>
+        <div className="panel-body space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* 正向贡献 */}
+            <div>
+              <div className="text-xs text-green-400 mb-2 font-medium">↑ 主要正向贡献</div>
               <div className="space-y-2">
-                {data.news.map((n, i) => (
-                  <div key={i} className="text-sm p-2 bg-terminal-card/50 rounded">
-                    <div className="text-terminal-text">{n.title}</div>
-                    <div className="flex gap-3 mt-1 text-xs text-terminal-dim">
-                      <span>{n.source}</span>
-                      <span className={n.sentiment > 0.5 ? 'text-red-400' : n.sentiment < -0.3 ? 'text-green-400' : 'text-terminal-dim'}>
-                        情绪 {n.sentiment > 0 ? '正面' : '负面'}
-                      </span>
+                {exp.top_positive.length > 0 ? exp.top_positive.map((it, i) => (
+                  <div key={`p-${i}`} className="flex items-start gap-2">
+                    <span className="text-green-400 mt-0.5">↑</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-green-400 font-medium">{it.dimension_cn || DIM_CN[it.dimension] || it.dimension}</span>
+                        <span className="text-xs font-mono text-green-400/80">+{it.contribution.toFixed(2)}</span>
+                      </div>
+                      <div className="mt-1 h-1 bg-terminal-card rounded-full overflow-hidden">
+                        <div className="h-full bg-green-400 rounded-full" style={{ width: `${(Math.abs(it.contribution) / maxContrib) * 100}%` }} />
+                      </div>
+                      {it.desc && <div className="text-xs text-terminal-dim mt-1">{it.desc}</div>}
                     </div>
+                  </div>
+                )) : <div className="text-xs text-terminal-dim">无显著正向贡献</div>}
+              </div>
+            </div>
+            {/* 负向贡献 */}
+            <div>
+              <div className="text-xs text-red-400 mb-2 font-medium">↓ 主要负向贡献</div>
+              <div className="space-y-2">
+                {exp.top_negative.length > 0 ? exp.top_negative.map((it, i) => (
+                  <div key={`n-${i}`} className="flex items-start gap-2">
+                    <span className="text-red-400 mt-0.5">↓</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-red-400 font-medium">{it.dimension_cn || DIM_CN[it.dimension] || it.dimension}</span>
+                        <span className="text-xs font-mono text-red-400/80">{it.contribution.toFixed(2)}</span>
+                      </div>
+                      <div className="mt-1 h-1 bg-terminal-card rounded-full overflow-hidden">
+                        <div className="h-full bg-red-400 rounded-full" style={{ width: `${(Math.abs(it.contribution) / maxContrib) * 100}%` }} />
+                      </div>
+                      {it.desc && <div className="text-xs text-terminal-dim mt-1">{it.desc}</div>}
+                    </div>
+                  </div>
+                )) : <div className="text-xs text-terminal-dim">无显著负向贡献</div>}
+              </div>
+            </div>
+          </div>
+          {exp.summary && (
+            <div className="border-t border-terminal-border pt-3 text-sm">
+              <span className="text-xs text-terminal-dim mr-2">总结</span>
+              <span className="text-terminal-text">{exp.summary}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 策略池命中 */}
+      <div className="panel">
+        <div className="panel-header"><h2 className="text-sm font-semibold">策略池命中</h2></div>
+        <div className="panel-body space-y-4">
+          <div className="flex flex-wrap gap-x-6 gap-y-3 text-sm">
+            <div>
+              <div className="text-xs text-terminal-dim">命中策略</div>
+              <div className="text-terminal-accent font-medium">{ranking?.active_strategy || healthPool?.active_style || '—'}</div>
+            </div>
+            {strategy && (
+              <>
+                <div>
+                  <div className="text-xs text-terminal-dim">版本</div>
+                  <div className="font-mono">{strategy.version}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-terminal-dim">风格描述</div>
+                  <div className="max-w-xs">{strategy.style_desc || strategy.style}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-terminal-dim">适应度</div>
+                  <div className="font-mono text-green-400">{strategy.fitness.toFixed(3)}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-terminal-dim">准确率</div>
+                  <div className="font-mono text-terminal-accent">{(strategy.accuracy * 100).toFixed(1)}%</div>
+                </div>
+                <div>
+                  <div className="text-xs text-terminal-dim">Brier</div>
+                  <div className="font-mono">{strategy.brier.toFixed(3)}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-terminal-dim">代际</div>
+                  <div className="font-mono">G{strategy.generation}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-terminal-dim">样本数</div>
+                  <div className="font-mono">{strategy.samples_tested}</div>
+                </div>
+              </>
+            )}
+          </div>
+          {strategy?.weights && (
+            <div className="border-t border-terminal-border pt-3">
+              <div className="text-xs text-terminal-dim mb-2">权重配置</div>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                {Object.entries(strategy.weights).map(([k, v]) => (
+                  <div key={k} className="bg-terminal-card/50 rounded px-2 py-1.5">
+                    <div className="text-xs text-terminal-dim">{DIM_CN[k] || k}</div>
+                    <div className="font-mono text-sm text-terminal-text">{v.toFixed(2)}</div>
                   </div>
                 ))}
               </div>
-            ) : <div className="text-sm text-terminal-dim">暂无相关新闻</div>}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

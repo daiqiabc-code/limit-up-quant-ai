@@ -1,84 +1,184 @@
-import { useEffect, useState } from 'react';
-import { api, LimitUpRecord } from '../lib/api';
+import { useEffect, useMemo, useState } from 'react';
+import { RefreshCw, Search, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { api, LimitUpSnapshot, LimitUpRecord } from '../lib/api';
+
+type SortKey = 'code' | 'name' | 'limit_price' | 'fb_count' | 'fd_amount' | 'reason' | 'industry';
+type SortDir = 'asc' | 'desc';
 
 export default function LimitUpList() {
-  const [records, setRecords] = useState<LimitUpRecord[]>([]);
-  const [date, setDate] = useState('');
+  const [data, setData] = useState<LimitUpSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
-  const [sort, setSort] = useState('boards');
+  const [error, setError] = useState('');
   const [search, setSearch] = useState('');
+  const [sortKey, setSortKey] = useState<SortKey>('fb_count');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
 
-  useEffect(() => { api.limitup().then(d => { setRecords(d.records); setDate(d.trade_date); setLoading(false); }); }, []);
+  const load = () => {
+    setLoading(true);
+    setError('');
+    api.limitup()
+      .then(setData)
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : '数据加载失败'))
+      .finally(() => setLoading(false));
+  };
 
-  const filtered = records
-    .filter(r => !search || r.name.includes(search) || r.code.includes(search))
-    .sort((a, b) => {
-      switch (sort) {
-        case 'boards': return b.boards - a.boards;
-        case 'amount': return b.amount - a.amount;
-        case 'seal_time': return a.seal_time.localeCompare(b.seal_time);
-        case 'turnover': return b.turnover - a.turnover;
-        default: return b.boards - a.boards;
+  useEffect(() => { load(); }, []);
+
+  const toggleSort = (k: SortKey) => {
+    if (k === sortKey) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(k);
+      setSortDir('desc');
+    }
+  };
+
+  const rows = useMemo<LimitUpRecord[]>(() => {
+    if (!data) return [];
+    const kw = search.trim().toLowerCase();
+    const filtered = kw
+      ? data.records.filter(
+          (r) => r.code.toLowerCase().includes(kw) || r.name.toLowerCase().includes(kw),
+        )
+      : data.records;
+    const sorted = [...filtered].sort((a, b) => {
+      const av = a[sortKey];
+      const bv = b[sortKey];
+      if (typeof av === 'string' && typeof bv === 'string') {
+        return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
       }
+      const diff = (av as number) - (bv as number);
+      return sortDir === 'asc' ? diff : -diff;
     });
+    return sorted;
+  }, [data, search, sortKey, sortDir]);
 
-  if (loading) return <div className="flex items-center justify-center h-64 text-terminal-dim">加载中...</div>;
+  if (loading) {
+    return <div className="flex items-center justify-center h-full text-terminal-dim">加载中...</div>;
+  }
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-3">
+        <div className="text-terminal-red">{error}</div>
+        <button onClick={load} className="btn-primary inline-flex items-center gap-1.5">
+          <RefreshCw size={14} /> 重试
+        </button>
+      </div>
+    );
+  }
+  if (!data) return null;
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-4">
+    <div className="p-4 lg:p-6 space-y-4">
+      {/* 顶部标题栏 */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold">昨日涨停列表</h1>
-          <p className="text-sm text-terminal-dim">{date} · 共 {records.length} 只涨停</p>
+          <h1 className="text-xl font-bold text-terminal-text">涨停列表</h1>
+          <p className="text-sm text-terminal-dim mt-1">
+            {data.trade_date} · 共 <span className="text-red-400 font-medium">{data.count}</span> 只涨停
+            {search.trim() && (
+              <span className="ml-1">· 筛选结果 {rows.length} 只</span>
+            )}
+          </p>
         </div>
-        <div className="flex gap-2">
-          <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="搜索股票代码/名称..."
-            className="bg-terminal-card border border-terminal-border rounded px-3 py-1.5 text-sm text-terminal-text placeholder-terminal-dim focus:outline-none focus:border-terminal-accent/50" />
-          <select value={sort} onChange={e => setSort(e.target.value)}
-            className="bg-terminal-card border border-terminal-border rounded px-2 py-1.5 text-sm text-terminal-text">
-            <option value="boards">连板高度</option>
-            <option value="amount">成交额</option>
-            <option value="seal_time">封板时间</option>
-            <option value="turnover">换手率</option>
-          </select>
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-terminal-dim" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="搜索代码 / 名称..."
+              className="bg-terminal-card border border-terminal-border rounded pl-8 pr-3 py-1.5 text-sm text-terminal-text placeholder-terminal-dim focus:outline-none focus:border-terminal-accent/50 w-44 sm:w-56"
+            />
+          </div>
+          <button onClick={load} className="btn-primary inline-flex items-center gap-1.5">
+            <RefreshCw size={14} /> 刷新
+          </button>
         </div>
       </div>
 
+      {/* 涨停表格 */}
       <div className="panel overflow-x-auto">
         <table className="data-table w-full">
           <thead>
             <tr>
-              <th>代码</th><th>名称</th><th>行业</th><th>题材</th><th>涨幅</th>
-              <th>连板</th><th>成交额</th><th>换手率</th><th>封板时间</th>
-              <th>炸板</th><th>封单/成交</th><th>主力净流入</th><th>龙虎榜</th><th>市值</th>
+              <SortableTh label="代码" k="code" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+              <SortableTh label="名称" k="name" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+              <SortableTh label="涨停价" k="limit_price" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} align="right" />
+              <SortableTh label="连板" k="fb_count" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} align="right" />
+              <SortableTh label="封单(万)" k="fd_amount" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} align="right" />
+              <SortableTh label="原因" k="reason" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+              <SortableTh label="行业" k="industry" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
             </tr>
           </thead>
           <tbody>
-            {filtered.map(r => (
-              <tr key={r.code} className="cursor-pointer hover:bg-terminal-accent/5"
-                onClick={() => window.dispatchEvent(new CustomEvent('navigate-detail', { detail: { code: r.code } }))}>
-                <td className="font-mono text-xs">{r.code}</td>
-                <td className="font-medium">{r.name}</td>
-                <td className="text-xs">{r.industry}</td>
-                <td className="text-xs">{r.concepts?.slice(0, 2).join('/')}</td>
-                <td className="text-red-400">+{r.pct_chg}%</td>
-                <td><span className={`font-bold ${r.boards >= 3 ? 'text-yellow-400' : ''}`}>{r.boards}板</span></td>
-                <td className="text-xs">{(r.amount / 1e8).toFixed(1)}亿</td>
-                <td className="text-xs">{r.turnover.toFixed(1)}%</td>
-                <td className="text-xs">{r.seal_time}</td>
-                <td className="text-xs">{r.break_times > 0 ? <span className="text-orange-400">{r.break_times}次</span> : '—'}</td>
-                <td className="text-xs">{r.seal_ratio.toFixed(2)}</td>
-                <td className={r.main_net_inflow >= 0 ? 'text-red-400 text-xs' : 'text-green-400 text-xs'}>
-                  {(r.main_net_inflow / 1e8).toFixed(2)}亿
+            {rows.length > 0 ? (
+              rows.map((r) => (
+                <tr key={r.code}>
+                  <td>
+                    <button
+                      onClick={() =>
+                        window.dispatchEvent(
+                          new CustomEvent('navigate-detail', { detail: { code: r.code } }),
+                        )
+                      }
+                      className="font-mono text-xs text-terminal-accent hover:underline"
+                    >
+                      {r.code}
+                    </button>
+                  </td>
+                  <td className="font-medium text-terminal-text">{r.name}</td>
+                  <td className="text-right font-mono text-red-400">{r.limit_price.toFixed(2)}</td>
+                  <td className="text-right">
+                    <span className={`font-bold ${r.fb_count >= 2 ? 'text-red-400' : 'text-terminal-text'}`}>
+                      {r.fb_count}板
+                    </span>
+                  </td>
+                  <td className="text-right font-mono text-terminal-text">¥{r.fd_amount.toFixed(2)}万</td>
+                  <td className="text-xs text-terminal-dim max-w-xs truncate" title={r.reason}>
+                    {r.reason || '—'}
+                  </td>
+                  <td className="text-xs text-terminal-dim">{r.industry || '—'}</td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={7} className="text-center text-terminal-dim py-8">
+                  {search.trim() ? '未匹配到符合条件的股票' : '暂无涨停数据'}
                 </td>
-                <td className="text-xs">{r.has_dragon ? '✅' : '—'}</td>
-                <td className="text-xs">{r.float_mv.toFixed(1)}亿</td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </div>
     </div>
+  );
+}
+
+function SortableTh({
+  label, k, sortKey, sortDir, onSort, align = 'left',
+}: {
+  label: string;
+  k: SortKey;
+  sortKey: SortKey;
+  sortDir: SortDir;
+  onSort: (k: SortKey) => void;
+  align?: 'left' | 'right';
+}) {
+  const active = sortKey === k;
+  return (
+    <th
+      onClick={() => onSort(k)}
+      className={`cursor-pointer select-none whitespace-nowrap ${align === 'right' ? 'text-right' : 'text-left'}`}
+    >
+      <span className={`inline-flex items-center gap-1 ${active ? 'text-terminal-accent' : ''}`}>
+        {label}
+        {active ? (
+          sortDir === 'asc' ? <ArrowUp size={11} /> : <ArrowDown size={11} />
+        ) : (
+          <ArrowUpDown size={11} className="text-terminal-dim/60" />
+        )}
+      </span>
+    </th>
   );
 }

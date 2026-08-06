@@ -1,60 +1,65 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import {
-  LayoutDashboard, TrendingUp, BarChart3, FileSearch,
-  Building2, Lightbulb, DollarSign, Thermometer, History,
-  Settings as SettingsIcon, Zap, Activity, Menu, X as CloseIcon,
-  Wifi, WifiOff, MessageCircle, Crosshair,
+  LayoutDashboard,
+  TrendingUp,
+  BarChart3,
+  FileSearch,
+  Building2,
+  Lightbulb,
+  Crosshair,
+  Thermometer,
+  Settings as SettingsIcon,
+  Zap,
+  Activity,
+  Menu,
+  X as CloseIcon,
+  Database,
 } from 'lucide-react';
 import { useStore } from './store';
-import { api, currentMode, snapshotMeta, SnapshotMeta } from './lib/api';
 import Dashboard from './pages/Dashboard';
 import LimitUpList from './pages/LimitUpList';
 import AiRanking from './pages/AiRanking';
 import StockDetail from './pages/StockDetail';
 import IndustryAnalysis from './pages/IndustryAnalysis';
 import ThemeAnalysis from './pages/ThemeAnalysis';
-import DragonTiger from './pages/DragonTiger';
+import PotentialLimitUp from './pages/PotentialLimitUp';
 import MarketSentiment from './pages/MarketSentiment';
-import Backtest from './pages/Backtest';
 import LearningSystem from './pages/LearningSystem';
 import Settings from './pages/Settings';
-import PotentialLimitUp from './pages/PotentialLimitUp';
-import ChatBot from './components/ChatBot';
 
-type Page = 'dashboard' | 'limitup' | 'ranking' | 'detail' | 'industry' | 'theme'
-  | 'dragon' | 'sentiment' | 'backtest' | 'learning' | 'settings' | 'scanner';
+type Page =
+  | 'dashboard'
+  | 'limitup'
+  | 'ranking'
+  | 'detail'
+  | 'industry'
+  | 'theme'
+  | 'scanner'
+  | 'sentiment'
+  | 'learning'
+  | 'settings';
 
-const menuItems: { id: Page; label: string; icon: React.ReactNode }[] = [
+const menuItems: { id: Page; label: string; icon: ReactNode }[] = [
   { id: 'dashboard', label: '总览看板', icon: <LayoutDashboard size={18} /> },
   { id: 'limitup', label: '昨日涨停', icon: <TrendingUp size={18} /> },
   { id: 'ranking', label: 'AI排行榜', icon: <BarChart3 size={18} /> },
   { id: 'detail', label: '股票详情', icon: <FileSearch size={18} /> },
   { id: 'industry', label: '行业分析', icon: <Building2 size={18} /> },
   { id: 'theme', label: '题材分析', icon: <Lightbulb size={18} /> },
-  { id: 'dragon', label: '龙虎榜', icon: <DollarSign size={18} /> },
   { id: 'scanner', label: '涨停潜力榜', icon: <Crosshair size={18} /> },
   { id: 'sentiment', label: '市场情绪', icon: <Thermometer size={18} /> },
-  { id: 'backtest', label: '历史回测', icon: <History size={18} /> },
   { id: 'learning', label: 'AI学习系统', icon: <Zap size={18} /> },
   { id: 'settings', label: '设置', icon: <SettingsIcon size={18} /> },
 ];
 
 export default function App() {
-  const { dashboard, refreshDashboard, date, showChat, setShowChat } = useStore();
+  const { dashboard, refreshDashboard, meta } = useStore();
   const [page, setPage] = useState<Page>('dashboard');
   const [detailCode, setDetailCode] = useState('');
   const [navOpen, setNavOpen] = useState(false);
-  const [mode, setMode] = useState<'live' | 'static'>('live');
-  const [meta, setMeta] = useState<SnapshotMeta | null>(null);
 
   useEffect(() => {
     refreshDashboard();
-    // 探测数据模式（实时后端 / 离线快照）
-    api.dashboard().finally(async () => {
-      const m = currentMode();
-      setMode(m);
-      if (m === 'static') setMeta(await snapshotMeta());
-    });
   }, []);
 
   useEffect(() => {
@@ -67,9 +72,15 @@ export default function App() {
     return () => window.removeEventListener('navigate-detail', handler as EventListener);
   }, []);
 
-  const go = (p: Page) => { setPage(p); setNavOpen(false); };
-  const activeLabel = menuItems.find(m => m.id === page)?.label ?? '总览看板';
-  const collector = dashboard?.collector ?? '—';
+  const go = (p: Page) => {
+    setPage(p);
+    setNavOpen(false);
+  };
+  const activeLabel = menuItems.find((m) => m.id === page)?.label ?? '总览看板';
+  const collector = dashboard?.collector ?? meta?.collector ?? '—';
+  const tradeDate =
+    meta?.trade_date ?? dashboard?.snapshot?.trade_date ?? '';
+  const environment = meta?.environment ?? '—';
 
   return (
     <div className="flex h-screen bg-terminal-bg overflow-hidden">
@@ -92,11 +103,16 @@ export default function App() {
           <div>
             <div className="flex items-center gap-2">
               <Activity size={20} className="text-terminal-accent" />
-              <span className="font-bold text-sm text-terminal-accent">Limit-Up Quant AI</span>
+              <span className="font-bold text-sm text-terminal-accent">
+                Limit-Up Quant AI
+              </span>
             </div>
-            <div className="text-xs text-terminal-dim mt-1">{date || meta?.trade_date || '—'}</div>
+            <div className="text-xs text-terminal-dim mt-1">{tradeDate || '—'}</div>
           </div>
-          <button className="lg:hidden text-terminal-dim p-1" onClick={() => setNavOpen(false)}>
+          <button
+            className="lg:hidden text-terminal-dim p-1"
+            onClick={() => setNavOpen(false)}
+          >
             <CloseIcon size={18} />
           </button>
         </div>
@@ -115,10 +131,14 @@ export default function App() {
               {m.icon}
               <span>{m.label}</span>
               {m.id === 'ranking' && (
-                <span className="ml-auto text-[10px] bg-terminal-accent/20 text-terminal-accent px-1.5 rounded">AI</span>
+                <span className="ml-auto text-[10px] bg-terminal-accent/20 text-terminal-accent px-1.5 rounded">
+                  AI
+                </span>
               )}
               {m.id === 'scanner' && (
-                <span className="ml-auto text-[10px] bg-yellow-400/20 text-yellow-400 px-1.5 rounded">🔥新</span>
+                <span className="ml-auto text-[10px] bg-yellow-400/20 text-yellow-400 px-1.5 rounded">
+                  🔥新
+                </span>
               )}
             </button>
           ))}
@@ -127,20 +147,15 @@ export default function App() {
         {/* ---- 数据源状态 ---- */}
         <div className="p-3 border-t border-terminal-border text-[11px] leading-relaxed">
           <div className="flex items-center gap-1.5">
-            {mode === 'live'
-              ? <Wifi size={12} className="text-emerald-400" />
-              : <WifiOff size={12} className="text-amber-400" />}
-            <span className={mode === 'live' ? 'text-emerald-400' : 'text-amber-400'}>
-              {mode === 'live' ? '实时后端已连接' : '离线快照模式'}
-            </span>
+            <Database size={12} className="text-amber-400" />
+            <span className="text-amber-400">静态快照模式</span>
           </div>
-          <div className="text-terminal-dim mt-0.5">
-            数据源：{mode === 'live' ? collector : (meta?.collector ?? 'akshare')}
-          </div>
-          {mode === 'static' && meta && (
+          <div className="text-terminal-dim mt-0.5">数据源：{collector}</div>
+          <div className="text-terminal-dim">环境：{environment}</div>
+          {meta?.generated_at && (
             <div className="text-terminal-dim">快照于 {meta.generated_at}</div>
           )}
-          <div className="text-terminal-dim/70 mt-0.5">v1.0 · 端口 4007/8008</div>
+          <div className="text-terminal-dim/70 mt-0.5">v1.0 · 静态部署</div>
         </div>
       </aside>
 
@@ -153,10 +168,8 @@ export default function App() {
           </button>
           <span className="text-sm font-medium text-terminal-text">{activeLabel}</span>
           <span className="ml-auto flex items-center gap-1 text-[10px] text-terminal-dim">
-            {mode === 'live'
-              ? <Wifi size={11} className="text-emerald-400" />
-              : <WifiOff size={11} className="text-amber-400" />}
-            {date || meta?.trade_date || '—'}
+            <Database size={11} className="text-amber-400" />
+            {tradeDate || '—'}
           </span>
         </header>
 
@@ -167,28 +180,12 @@ export default function App() {
           {page === 'detail' && <StockDetail code={detailCode} />}
           {page === 'industry' && <IndustryAnalysis />}
           {page === 'theme' && <ThemeAnalysis />}
-          {page === 'dragon' && <DragonTiger />}
           {page === 'scanner' && <PotentialLimitUp />}
           {page === 'sentiment' && <MarketSentiment />}
-          {page === 'backtest' && <Backtest />}
           {page === 'learning' && <LearningSystem />}
           {page === 'settings' && <Settings />}
         </main>
       </div>
-
-      {/* ---- AI 聊天助手 ---- */}
-      {showChat && <ChatBot onClose={() => setShowChat(false)} />}
-      {!showChat && (
-        <button
-          onClick={() => setShowChat(true)}
-          title="AI 助手"
-          className="fixed bottom-5 right-5 z-30 w-12 h-12 rounded-full bg-terminal-accent text-black
-                     shadow-lg shadow-terminal-accent/30 flex items-center justify-center
-                     hover:scale-105 active:scale-95 transition-transform"
-        >
-          <MessageCircle size={22} />
-        </button>
-      )}
     </div>
   );
 }
