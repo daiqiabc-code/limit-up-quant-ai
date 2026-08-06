@@ -653,3 +653,430 @@ def _gen_interpretation(
         parts.append("各维度影响均衡")
     return "，".join(parts)
 
+
+# ====================================================================
+# 5 维盘中评分模型 —— 用户指定的核心评分引擎
+# 每维 0~100，权重和=1，加权得总分 0~100
+# ====================================================================
+
+# 经验权重（后续可由策略池优化）
+FIVE_DIM_WEIGHTS: dict[str, float] = {
+    "board_strength": 0.25,   # 连板强度
+    "seal_quality":   0.20,   # 封单质量
+    "sector_position": 0.20,  # 板块地位
+    "theme_freshness": 0.20,  # 题材新鲜度
+    "volume_health":   0.15,  # 量价健康
+}
+
+
+def _score_board_strength(boards: int) -> float:
+    """连板强度：连板越高分越高，但超过 5 板衰减。
+
+    1板 40-52 / 2板 55-70 / 3板 72-85 / 4板 80-92 / 5板 85-90 / 6+板衰减
+    """
+    if boards <= 0:
+        return 20.0
+    if boards == 1:
+        return 46.0
+    if boards == 2:
+        return 63.0
+    if boards == 3:
+        return 80.0
+    if boards == 4:
+        return 88.0
+    if boards == 5:
+        return 86.0
+    if boards == 6:
+        return 78.0
+    if boards == 7:
+        return 68.0
+    # 8 板以上：高位风险，持续衰减
+    return max(30.0, 68.0 - (boards - 7) * 8.0)
+
+
+def _score_seal_quality(seal_amount: float, float_mv: float, seal_time: str, break_times: int) -> float:
+    """封单质量：封单额/流通市值 比值 + 封板时间 + 炸板扣分。
+
+    seal_ratio = 封单额 / 流通市值（元）
+    > 5% → 90+，2-5% → 70-90，0.5-2% → 50-70，< 0.5% → < 50
+    """
+    if float_mv <= 0:
+        seal_ratio = 0
+    else:
+        # seal_amount 单位元，float_mv 单位亿元 → 统一为元
+        seal_ratio = seal_amount / (float_mv * 1e8)
+
+    # 基础分：封单比
+    if seal_ratio >= 0.08:
+        base = 95.0
+    elif seal_ratio >= 0.05:
+        base = 88.0
+    elif seal_ratio >= 0.03:
+        base = 78.0
+    elif seal_ratio >= 0.01:
+        base = 65.0
+    elif seal_ratio >= 0.005:
+        base = 50.0
+    else:
+        base = 30.0
+
+    # 封板时间加成：早盘封板加分
+    try:
+        parts = seal_time.split(":")
+        h, m = int(parts[0]), int(parts[1])
+        minutes_from_open = (h - 9) * 60 + (m - 30)
+        if minutes_from_open <= 0:       # 开盘即封（一字板）
+            time_bonus = 8.0
+        elif minutes_from_open <= 30:     # 9:30-10:00
+            time_bonus = 5.0
+        elif minutes_from_open <= 120:    # 10:00-11:30
+            time_bonus = 2.0
+        else:                             # 午后封板
+            time_bonus = -3.0
+    except Exception:
+        time_bonus = 0.0
+
+    # 炸板扣分
+    break_penalty = break_times * 6.0
+
+    return round(max(0, min(100, base + time_bonus - break_penalty)), 1)
+
+
+def _score_sector_position(
+    rec: dict, all_records: list[dict], theme_stats: dict[str, int]
+) -> float:
+    """板块地位：是否板块前排/龙头。
+
+    判断逻辑：
+    - 在同概念中连板数最高 → 龙头 → 高分
+    - 在同概念中排名第二 → 前排
+    - 同概念涨停股多但本股排末位 → 跟风
+    - 独立涨停无板块效应 → 中等
+    """
+    boards = rec.get("boards", 1)
+    concepts = rec.get("concepts", [])
+
+    if not concepts or not all_records:
+        # 无概念归属，给中等分
+        return 50.0
+
+    # 找出同概念的涨停股
+    same_concept_stocks: list[dict] = []
+    for r in all_records:
+        r_concepts = r.get("concepts", [])
+        if any(c in concepts for c in r_concepts):
+            same_concept_stocks.append(r)
+
+    if not same_concept_stocks or len(same_concept_stocks) == 1:
+        # 独立涨停，无板块效应
+        return 45.0
+
+    # 按连板数排序
+    same_concept_stocks.sort(key=lambda x: -x.get("boards", 1))
+    my_rank = next(
+        (i + 1 for i, r in enumerate(same_concept_stocks) if r["code"] == rec["code"]),
+        len(same_concept_stocks),
+    )
+    total_in_concept = len(same_concept_stocks)
+
+    # 龙头（连板最高）
+    if my_rank == 1:
+        if total_in_concept >= 5:
+            return 92.0  # 大板块龙头
+        elif total_in_concept >= 3:
+            return 85.0
+        else:
+            return 78.0
+    # 第二名
+    if my_rank == 2:
+        return 68.0
+    # 第三名
+    if my_rank == 3:
+        return 55.0
+    # 跟风
+    return max(25.0, 45.0 - (my_rank - 3) * 5.0)
+
+
+def _score_theme_freshness(
+    concepts: list[str], theme_stats: dict[str, int]
+) -> float:
+    """题材新鲜度：是否当下主线热点。
+
+    最优区间：概念涨停 2-8 只（正在发酵、尚未过热）
+    - 0-1 只：太冷，可能无法持续
+    - 2-8 只：黄金区间
+    - 9-15 只：偏热但仍有机会
+    - 15+ 只：过热，利好出尽
+    """
+    if not concepts:
+        return 35.0
+
+    scores = []
+    for c in concepts:
+        cnt = theme_stats.get(c, 0)
+        if 2 <= cnt <= 8:
+            scores.append(85.0 + (8 - cnt) * 1.5)   # 85-94
+        elif cnt == 1:
+            scores.append(55.0)                      # 刚起步
+        elif cnt == 0:
+            scores.append(40.0)                      # 无共识
+        elif 9 <= cnt <= 15:
+            scores.append(60.0 - (cnt - 9) * 2.0)   # 60→44
+        else:
+            scores.append(25.0)                      # 过热
+
+    # 取最佳概念得分，概念多样性小幅加分
+    best = max(scores)
+    diversity_bonus = min(5.0, len(concepts) * 1.5)
+    return round(max(0, min(100, best + diversity_bonus)), 1)
+
+
+def _score_volume_health(
+    turnover: float, amount: float, limit_type: str, break_times: int
+) -> float:
+    """量价健康：换手充分、不是一字硬顶。
+
+    - 换手率 3-15% → 健康（充分换手）
+    - 换手率 < 2% → 一字硬顶，接力风险高
+    - 换手率 > 30% → 换手过大，分歧严重
+    - 换手板 > T字板 > 一字板（对接力而言）
+    - 成交额太小（< 2 亿）流动性差
+    """
+    # 换手率评分
+    if 5 <= turnover <= 15:
+        turn_score = 90.0
+    elif 3 <= turnover < 5:
+        turn_score = 80.0
+    elif 15 < turnover <= 25:
+        turn_score = 70.0
+    elif 2 <= turnover < 3:
+        turn_score = 60.0
+    elif 25 < turnover <= 40:
+        turn_score = 45.0
+    elif turnover < 2:
+        turn_score = 35.0   # 无量一字板
+    else:
+        turn_score = 25.0   # 换手过大
+
+    # 涨停类型修正
+    type_bonus = {"换手板": 5.0, "T字板": 0.0, "一字板": -8.0}.get(limit_type, 0.0)
+
+    # 成交额修正（亿元）
+    amt_yi = amount / 1e8
+    if amt_yi >= 5:
+        amt_bonus = 3.0
+    elif amt_yi >= 2:
+        amt_bonus = 1.0
+    elif amt_yi < 0.5:
+        amt_bonus = -5.0   # 流动性差
+    else:
+        amt_bonus = 0.0
+
+    # 炸板扣分
+    break_penalty = break_times * 4.0
+
+    return round(max(0, min(100, turn_score + type_bonus + amt_bonus - break_penalty)), 1)
+
+
+# ---- 5 维评分入口 ----
+
+def score_five_dimensions(
+    rec: dict,
+    all_records: list[dict],
+    theme_stats: dict[str, int],
+) -> dict[str, Any]:
+    """对单只涨停股计算 5 维评分。
+
+    返回：
+        {
+            "sub_scores": {"board_strength": 63.0, "seal_quality": 78.0, ...},
+            "total_score": 72.5,
+            "weights": {...},
+        }
+    """
+    boards = int(rec.get("boards", 1))
+    seal_amount = float(rec.get("seal_amount", 0))
+    float_mv = float(rec.get("float_mv", 50))
+    seal_time = str(rec.get("seal_time", "10:00"))
+    break_times = int(rec.get("break_times", 0))
+    concepts = rec.get("concepts", [])
+    turnover = float(rec.get("turnover", 5))
+    amount = float(rec.get("amount", 0))
+    limit_type = str(rec.get("limit_type", "换手板"))
+
+    subs = {
+        "board_strength":  _score_board_strength(boards),
+        "seal_quality":    _score_seal_quality(seal_amount, float_mv, seal_time, break_times),
+        "sector_position": _score_sector_position(rec, all_records, theme_stats),
+        "theme_freshness": _score_theme_freshness(concepts, theme_stats),
+        "volume_health":   _score_volume_health(turnover, amount, limit_type, break_times),
+    }
+
+    total = round(
+        sum(subs[k] * w for k, w in FIVE_DIM_WEIGHTS.items()), 1
+    )
+
+    return {
+        "sub_scores": subs,
+        "total_score": total,
+        "weights": dict(FIVE_DIM_WEIGHTS),
+    }
+
+
+# ---- 双评级 ----
+
+def compute_abs_grade_100(score: float) -> str:
+    """绝对评级（基于总分 0-100）。
+
+    S≥85 / A≥72 / B≥55 / C≥35 / D<35
+    """
+    if score >= 85:
+        return "S"
+    if score >= 72:
+        return "A"
+    if score >= 55:
+        return "B"
+    if score >= 35:
+        return "C"
+    return "D"
+
+
+def compute_rel_grade_batch(scores: list[float]) -> list[dict[str, Any]]:
+    """相对评级（基于池内百分位）。
+
+    S=前8% / A=8%~20% / B=20%~40% / C=40%~70% / D=后30%
+
+    返回每个 score 对应的 {rel_grade, percentile}，顺序与输入一致。
+    """
+    n = len(scores)
+    if n == 0:
+        return []
+
+    # 降序排列，记录原始索引
+    indexed = sorted(enumerate(scores), key=lambda x: -x[1])
+    results: list[dict[str, Any]] = [{} for _ in range(n)]
+
+    for rank, (idx, score) in enumerate(indexed):
+        # 百分位：rank=0 → 100（最高），rank=n-1 → 0（最低）
+        pct = round((1 - rank / max(n - 1, 1)) * 100)
+
+        # 相对评级阈值
+        top_pct = (rank + 1) / n * 100
+        if top_pct <= 8:
+            rel = "S"
+        elif top_pct <= 20:
+            rel = "A"
+        elif top_pct <= 40:
+            rel = "B"
+        elif top_pct <= 70:
+            rel = "C"
+        else:
+            rel = "D"
+
+        results[idx] = {
+            "rel_grade": rel,
+            "percentile": pct,
+        }
+    return results
+
+
+def score_limit_up_batch(
+    records: list[dict],
+    theme_stats: dict[str, int] | None = None,
+) -> list[dict[str, Any]]:
+    """批量评分：对一组涨停股计算 5 维评分 + 双评级 + 一句话理由。
+
+    返回列表按总分降序排列，每条包含：
+        code, name, boards, total_score, sub_scores, abs_grade, rel_grade, percentile, reason
+    """
+    if theme_stats is None:
+        # 自动从 records 统计题材热度
+        theme_stats = {}
+        for r in records:
+            for c in r.get("concepts", []):
+                theme_stats[c] = theme_stats.get(c, 0) + 1
+
+    scored: list[dict[str, Any]] = []
+    for rec in records:
+        result = score_five_dimensions(rec, records, theme_stats)
+        subs = result["sub_scores"]
+        total = result["total_score"]
+
+        scored.append({
+            "code": rec.get("code", ""),
+            "name": rec.get("name", ""),
+            "boards": int(rec.get("boards", 1)),
+            "industry": rec.get("industry", ""),
+            "concepts": rec.get("concepts", []),
+            "price": float(rec.get("close", 0)),
+            "seal_amount": float(rec.get("seal_amount", 0)),
+            "float_mv": float(rec.get("float_mv", 0)),
+            "turnover": float(rec.get("turnover", 0)),
+            "amount": float(rec.get("amount", 0)),
+            "seal_time": rec.get("seal_time", ""),
+            "break_times": int(rec.get("break_times", 0)),
+            "limit_type": rec.get("limit_type", ""),
+            "sub_scores": subs,
+            "total_score": total,
+        })
+
+    # 按总分降序
+    scored.sort(key=lambda x: -x["total_score"])
+
+    # 计算双评级
+    totals = [s["total_score"] for s in scored]
+    rel_grades = compute_rel_grade_batch(totals)
+    for i, s in enumerate(scored):
+        s["abs_grade"] = compute_abs_grade_100(s["total_score"])
+        s["rel_grade"] = rel_grades[i]["rel_grade"]
+        s["percentile"] = rel_grades[i]["percentile"]
+        s["reason"] = _gen_one_line_reason(s)
+
+    return scored
+
+
+def _gen_one_line_reason(scored: dict[str, Any]) -> str:
+    """根据分项得分生成一句话理由。"""
+    subs = scored["sub_scores"]
+    boards = scored["boards"]
+    parts = []
+
+    # 连板强度
+    if subs["board_strength"] >= 80:
+        parts.append(f"{boards}连板动能强劲")
+    elif subs["board_strength"] >= 60:
+        parts.append(f"{boards}连板表现稳健")
+    elif subs["board_strength"] < 45 and boards >= 5:
+        parts.append(f"{boards}板高位风险加大")
+
+    # 封单质量
+    if subs["seal_quality"] >= 85:
+        parts.append("封单坚决")
+    elif subs["seal_quality"] < 50:
+        parts.append("封单偏弱")
+
+    # 板块地位
+    if subs["sector_position"] >= 85:
+        parts.append("板块龙头")
+    elif subs["sector_position"] >= 65:
+        parts.append("板块前排")
+    elif subs["sector_position"] < 40:
+        parts.append("板块跟风")
+
+    # 题材新鲜度
+    if subs["theme_freshness"] >= 80:
+        parts.append("题材正发酵")
+    elif subs["theme_freshness"] < 40:
+        parts.append("题材偏冷或过热")
+
+    # 量价健康
+    if subs["volume_health"] >= 80:
+        parts.append("换手健康")
+    elif subs["volume_health"] < 45:
+        parts.append("量价存隐忧")
+
+    if not parts:
+        parts.append("各维度表现均衡")
+
+    return "，".join(parts[:3])
+

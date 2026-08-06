@@ -35,7 +35,9 @@ from app.data.provider import (  # noqa: E402
     get_limit_up_data,
     get_previous_limit_up,
     get_collector_type,
+    get_theme_stats,
 )
+from app.ml.scoring import score_limit_up_batch  # noqa: E402
 
 # 输出目录
 OUT_DIR = os.path.join(
@@ -80,16 +82,15 @@ def main() -> int:
     # 1. 获取最近交易日
     trade_date = get_latest_trade_date()
     collector = get_collector_type()
-    print(f"\n[1/3] 交易日: {trade_date}  数据源: {collector}")
+    print(f"\n[1/5] 交易日: {trade_date}  数据源: {collector}")
 
     # 2. 抓取涨停数据
-    print("\n[2/3] 抓取涨停池...")
+    print("\n[2/5] 抓取涨停池...")
     records = get_limit_up_data(trade_date)
     if not records:
         print("  ⚠ 涨停池为空（可能是非交易日或网络不可用）")
         if settings.SOURCE_MODE == "auto":
             print("  → auto 模式: 降级为模拟器数据")
-            # provider 内部已处理降级，这里再次检查
             records = get_limit_up_data(trade_date)
 
     print(f"  获取 {len(records)} 条涨停记录")
@@ -103,15 +104,95 @@ def main() -> int:
         "records": simplified,
     }
     path = _write_json("limitup.json", snapshot)
-    print(f"\n[3/3] 写入 limitup.json ({os.path.getsize(path):,} bytes)")
+    print(f"\n[3/5] 写入 limitup.json ({os.path.getsize(path):,} bytes)")
     print(f"  样例: {json.dumps(simplified[0], ensure_ascii=False) if simplified else '(空)'}")
 
-    # 附加：昨日涨停今日表现（仅 akshare 模式）
+    # 4. AI 评分：5 维评分 + 双评级 → scanner_potential.json + ranking.json
+    print(f"\n[4/5] AI 5 维评分引擎...")
+    theme_stats_raw = get_theme_stats(trade_date)
+    theme_stats = {t["name"]: t["count"] for t in theme_stats_raw}
+    scored = score_limit_up_batch(records, theme_stats)
+    print(f"  评分完成：{len(scored)} 只")
+
+    # 评分分布统计
+    if scored:
+        abs_dist = {}
+        rel_dist = {}
+        for s in scored:
+            abs_dist[s["abs_grade"]] = abs_dist.get(s["abs_grade"], 0) + 1
+            rel_dist[s["rel_grade"]] = rel_dist.get(s["rel_grade"], 0) + 1
+        print(f"  绝对评级分布: {dict(sorted(abs_dist.items()))}")
+        print(f"  相对评级分布: {dict(sorted(rel_dist.items()))}")
+        scores_list = [s["total_score"] for s in scored]
+        print(f"  总分范围: {min(scores_list):.1f} ~ {max(scores_list):.1f}  均值: {sum(scores_list)/len(scores_list):.1f}")
+
+    # scanner_potential.json：今日涨停潜力榜（按总分降序，前 60 只）
+    top_60 = scored[:60]
+    scanner_data = {
+        "trade_date": trade_date,
+        "source": collector,
+        "total_candidates": len(scored),
+        "ranking": [
+            {
+                "rank": i + 1,
+                "code": s["code"],
+                "name": s["name"],
+                "boards": s["boards"],
+                "price": round(s["price"], 2),
+                "industry": s["industry"],
+                "concepts": s["concepts"],
+                "total_score": s["total_score"],
+                "sub_scores": s["sub_scores"],
+                "abs_grade": s["abs_grade"],
+                "rel_grade": s["rel_grade"],
+                "percentile": s["percentile"],
+                "reason": s["reason"],
+            }
+            for i, s in enumerate(top_60)
+        ],
+    }
+    path = _write_json("scanner_potential.json", scanner_data)
+    print(f"  ✓ scanner_potential.json ({len(top_60)} 条, {os.path.getsize(path):,} bytes)")
+
+    # ranking.json：AI 接力排行榜（全量，聚焦"最值得接力"）
+    ranking_data = {
+        "trade_date": trade_date,
+        "source": collector,
+        "count": len(scored),
+        "ranking": [
+            {
+                "rank": i + 1,
+                "code": s["code"],
+                "name": s["name"],
+                "boards": s["boards"],
+                "price": round(s["price"], 2),
+                "total_score": s["total_score"],
+                "sub_scores": s["sub_scores"],
+                "abs_grade": s["abs_grade"],
+                "rel_grade": s["rel_grade"],
+                "percentile": s["percentile"],
+                "reason": s["reason"],
+                "industry": s["industry"],
+                "seal_time": s["seal_time"],
+                "break_times": s["break_times"],
+                "limit_type": s["limit_type"],
+                "float_mv": s["float_mv"],
+                "turnover": s["turnover"],
+                "amount": s["amount"],
+            }
+            for i, s in enumerate(scored)
+        ],
+    }
+    path = _write_json("ranking.json", ranking_data)
+    print(f"  ✓ ranking.json ({len(scored)} 条, {os.path.getsize(path):,} bytes)")
+
+    # 5. 附加 + 元数据
+    print(f"\n[5/5] 附加数据...")
     if settings.SOURCE_MODE in ("akshare", "auto"):
-        print("\n[附加] 抓取昨日涨停今日表现...")
+        print("  抓取昨日涨停今日表现...")
         prev = get_previous_limit_up(trade_date)
         if prev:
-            prev_path = _write_json("limitup_previous.json", {
+            _write_json("limitup_previous.json", {
                 "trade_date": trade_date,
                 "source": "akshare",
                 "count": len(prev),
@@ -119,24 +200,23 @@ def main() -> int:
             })
             print(f"  ✓ limitup_previous.json ({len(prev)} 条)")
         else:
-            print("  - 昨日涨停数据不可用（非交易日或网络问题）")
+            print("  - 昨日涨停数据不可用")
 
-    # 元数据
     _write_json("meta.json", {
         "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "trade_date": trade_date,
         "collector": collector,
         "source_mode": settings.SOURCE_MODE,
-        "endpoints": 1,
+        "endpoints": 3,
         "details": 0,
         "detail_codes": [],
         "mode": "static-snapshot",
     })
-    print(f"\n  ✓ meta.json")
+    print(f"  ✓ meta.json")
 
     elapsed = time.time() - t0
     print("\n" + "=" * 62)
-    print(f"完成：{len(simplified)} 条涨停记录，数据源 {collector}，耗时 {elapsed:.1f}s")
+    print(f"完成：{len(simplified)} 条涨停记录，{len(scored)} 条AI评分，数据源 {collector}，耗时 {elapsed:.1f}s")
     print(f"输出：{OUT_DIR}")
     print("=" * 62)
     return 0
