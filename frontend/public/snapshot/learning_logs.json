@@ -1,1 +1,18 @@
-{"logs": []}
+{
+  "logs": [
+    {
+      "date": "20260805",
+      "actual_date": "20260805",
+      "timestamp": "2026-08-06 09:11:23",
+      "total": 103,
+      "verified": 103,
+      "hit_count": 2,
+      "accuracy": 0.0194,
+      "brier": 0.367,
+      "environment": "情绪亢奋",
+      "event": "prediction_verification",
+      "level": "warning",
+      "summary": "20260805 预测验证: 103只, 命中2, 准确率1.9%"
+    }
+  ]
+}

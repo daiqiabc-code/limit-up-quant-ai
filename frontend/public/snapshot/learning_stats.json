@@ -1,1 +1,75 @@
-{"model_version": "ci", "total_predictions": 0, "accuracy": 0}
+{
+  "model_version": "gen2-n44w",
+  "active_strategy": "均衡型(变异)×均衡型",
+  "generation": 2,
+  "total_evolves": 2,
+  "total_predictions": 206,
+  "total_hits": 105,
+  "overall_accuracy": 0.5097,
+  "overall_brier": 0.2855,
+  "last_verification": {
+    "date": "20260805",
+    "actual_date": "20260805",
+    "verified": 103,
+    "hit_count": 2,
+    "accuracy": 0.0194,
+    "brier": 0.367,
+    "environment": "情绪亢奋"
+  },
+  "environment_stats": {
+    "情绪亢奋": {
+      "total": 206,
+      "hits": 105,
+      "accuracy": 0.5097,
+      "brier": 0.2855
+    }
+  },
+  "strategy_pool": {
+    "generation": 2,
+    "active_style": "均衡型(变异)×均衡型",
+    "pool_size": 5,
+    "strategies": [
+      {
+        "style": "均衡型(变异)×均衡型",
+        "fitness": 0.7299,
+        "accuracy": 0.5097,
+        "brier": 0.2895,
+        "samples_tested": 206
+      },
+      {
+        "style": "均衡型(变异)",
+        "fitness": 0.7296,
+        "accuracy": 0.5097,
+        "brier": 0.2898,
+        "samples_tested": 206
+      },
+      {
+        "style": "均衡型(变异)(变异)",
+        "fitness": 0.7289,
+        "accuracy": 0.5097,
+        "brier": 0.2905,
+        "samples_tested": 206
+      },
+      {
+        "style": "均衡型",
+        "fitness": 0.7251,
+        "accuracy": 0.5097,
+        "brier": 0.2944,
+        "samples_tested": 206
+      },
+      {
+        "style": "均衡型(变异)",
+        "fitness": 0.7251,
+        "accuracy": 0.5097,
+        "brier": 0.2943,
+        "samples_tested": 206
+      }
+    ]
+  },
+  "world_model": {
+    "current_env": "情绪亢奋",
+    "env_accuracy": 0.5049,
+    "adjustments": {}
+  },
+  "generated_at": "2026-08-06 09:11:23"
+}
