@@ -34,9 +34,17 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Install system deps (for akshare)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libxml2-dev libxslt1-dev 2>/dev/null || true
+
       - name: Install Python deps
         run: |
           pip install akshare scikit-learn numpy uvicorn fastapi
+
+      - name: Verify akshare works
+        run: python -c "import akshare as ak; df=ak.stock_zt_pool_em(date='20260805'); print(f'akshare OK, rows={len(df)}')"
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -46,20 +54,32 @@ jobs:
       - name: Install frontend deps
         run: cd frontend && npm install
 
-      - name: Start backend
+      - name: Start backend & generate snapshots
         run: |
           cd backend
-          python -m uvicorn app.main:app --host 0.0.0.0 --port 8008 &
+          python -m uvicorn app.main:app --host 0.0.0.0 --port 8008 > /tmp/backend.log 2>&1 &
+          BACKEND_PID=$!
+          echo "Backend PID: $BACKEND_PID"
+
           # wait for health check
           for i in $(seq 1 30); do
-            curl -s http://localhost:8008/api/health && break
+            if curl -s -o /dev/null -w "%{http_code}" http://localhost:8008/api/health | grep -q 200; then
+              echo "Backend ready (attempt $i)"
+              break
+            fi
             sleep 2
           done
 
-      - name: Generate snapshots
-        run: |
-          cd backend
-          python -m scripts.make_snapshot --limit-detail 80
+          # verify backend is up
+          if ! curl -s http://localhost:8008/api/health; then
+            echo "=== BACKEND FAILED TO START ==="
+            cat /tmp/backend.log
+            exit 1
+          fi
+
+          # generate snapshots
+          python -m scripts.make_snapshot --limit-detail 60
+          kill $BACKEND_PID 2>/dev/null || true
 
       - name: Build frontend
         run: |
