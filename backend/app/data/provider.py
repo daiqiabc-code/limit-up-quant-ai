@@ -1,8 +1,8 @@
 """统一数据提供层 v2 —— 真实 AKShare 数据优先，模拟器兜底。
 
-SOURCE_MODE=akshare  → 实时真实行情
+SOURCE_MODE=akshare  → 实时真实行情（失败不降级，返回空列表）
 SOURCE_MODE=simulator → 确定性伪随机数据
-SOURCE_MODE=auto      → 优先 akshare，失败降级
+SOURCE_MODE=auto      → 优先 akshare，失败自动降级模拟器
 
 网络限制：push2.eastmoney.com（K线/龙虎榜/个股信息）在当前代理环境不可用。
   - 可用：stock_zt_pool_em（涨停池）, stock_zh_index_daily（指数）
@@ -10,25 +10,25 @@ SOURCE_MODE=auto      → 优先 akshare，失败降级
 """
 from __future__ import annotations
 
-from functools import lru_cache
 from typing import Any
 
 from app.config import settings
 
 
-def _use_real() -> bool:
-    """判断是否使用真实数据。"""
-    if settings.SOURCE_MODE == "akshare":
-        from app.data.akshare_adapter import is_available
-        return is_available()
-    if settings.SOURCE_MODE == "auto":
-        from app.data.akshare_adapter import is_available
-        return is_available()
-    return False
+def _want_real() -> bool:
+    """是否期望使用真实数据（akshare 或 auto 模式）。"""
+    return settings.SOURCE_MODE in ("akshare", "auto")
+
+
+def _akshare_available() -> bool:
+    """akshare 库是否已安装且可导入。"""
+    from app.data.akshare_adapter import is_available
+    return is_available()
 
 
 def get_collector_type() -> str:
-    if _use_real():
+    """返回当前实际数据源标识。"""
+    if _want_real() and _akshare_available():
         return "akshare"
     return "simulator"
 
@@ -36,16 +36,16 @@ def get_collector_type() -> str:
 # =========== 涨停数据 ===========
 
 def get_latest_trade_date() -> str:
-    if _use_real():
-        from app.data.akshare_adapter import _yesterday
-        return _yesterday()
-    from app.data.simulator import get_generated_data
-    data = get_generated_data()
-    return data[-1].trade_date if data else "—"
+    """获取最近一个已收盘交易日（YYYYMMDD 格式）。
+
+    优先使用 akshare 交易日历，网络不可用时降级为本地规则。
+    """
+    from app.data.calendar import get_latest_trade_date as _cal_date
+    return _cal_date()
 
 
 def get_available_dates() -> list[str]:
-    if _use_real():
+    if _want_real() and _akshare_available():
         from datetime import date, timedelta
         d = date.today()
         return [(d - timedelta(days=i)).isoformat() for i in range(1, 60)]
@@ -54,14 +54,30 @@ def get_available_dates() -> list[str]:
 
 
 def get_limit_up_data(trade_date: str | None = None) -> list[dict[str, Any]]:
+    """获取涨停数据。优先真实，auto 模式下失败自动降级模拟器。
+
+    返回的每条记录中不含 source 字段；调用方可通过 get_collector_type() 判断来源。
+    """
     key = f"lu_{trade_date or 'latest'}"
     if key in _cache:
         return _cache[key]
-    if _use_real():
+
+    # 尝试真实数据
+    if _want_real() and _akshare_available():
         from app.data.akshare_adapter import fetch_limit_up_pool
         result = fetch_limit_up_pool(trade_date)
-        _cache[key] = result
-        return result
+        if result:
+            _cache[key] = result
+            return result
+        # akshare 返回空：auto 模式降级到模拟器
+        if settings.SOURCE_MODE == "auto":
+            print("[Provider] akshare 涨停池为空，auto 模式降级为模拟器")
+        else:
+            # akshare 模式下不降级，返回空
+            _cache[key] = result
+            return result
+
+    # 模拟器兜底
     from app.data.simulator import get_generated_data
     data = get_generated_data()
     if not data:
@@ -80,11 +96,19 @@ def _clear_cache() -> None:
     _cache.clear()
 
 
+def get_previous_limit_up(trade_date: str | None = None) -> list[dict[str, Any]]:
+    """昨日涨停今日表现。仅 akshare 模式可用，否则返回空列表。"""
+    if _want_real() and _akshare_available():
+        from app.data.akshare_adapter import fetch_previous_limit_up
+        return fetch_previous_limit_up(trade_date)
+    return []
+
+
 def get_market_snapshot(trade_date: str | None = None) -> dict[str, Any]:
     key = f"snap_{trade_date or 'latest'}"
     if key in _cache:
         return _cache[key]
-    if _use_real():
+    if _want_real() and _akshare_available():
         from app.data.akshare_adapter import fetch_market_snapshot
         snap = fetch_market_snapshot(trade_date)
         if snap:
@@ -96,7 +120,9 @@ def get_market_snapshot(trade_date: str | None = None) -> dict[str, Any]:
                 snap["limit_up_count"] = len(limits)
             _cache[key] = snap
             return snap
-        return {}
+        # akshare 失败 + auto 模式 → 降级模拟器
+        if settings.SOURCE_MODE != "auto":
+            return {}
     from app.data.simulator import get_generated_data
     data = get_generated_data()
     if not data:
@@ -121,7 +147,7 @@ def get_dragon_tiger(trade_date: str | None = None, code: str | None = None) -> 
 
 
 def get_news(trade_date: str | None = None, code: str | None = None) -> list[dict[str, Any]]:
-    if _use_real():
+    if _want_real() and _akshare_available():
         return []  # AKShare 暂不实时抓新闻，可用 LLM 分析公告替代
     from app.data.simulator import get_generated_data
     data = get_generated_data()

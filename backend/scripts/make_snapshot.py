@@ -1,143 +1,143 @@
-"""静态快照生成器 —— 把全部 API 响应固化为 JSON，供公网静态站点使用。
-
-用途：
-    后端 FastAPI 无法部署到静态托管（CloudStudio / Pages），
-    因此每天收盘后跑一次本脚本，把当日全部 API 响应导出为静态 JSON，
-    前端在探测不到 /api/health 时自动降级读取这些文件。
+"""静态快照生成器 —— 直接调用数据层，无需启动后端 HTTP 服务。
 
 用法：
-    cd backend && ./venv/Scripts/python.exe -m scripts.make_snapshot
-    可选：--base http://localhost:8008  --limit-detail 60
+    cd backend && python -m scripts.make_snapshot
+
+环境变量：
+    SOURCE_MODE=akshare    # 强制使用真实行情（失败返回空，不降级）
+    SOURCE_MODE=simulator   # 强制使用模拟器
+    SOURCE_MODE=auto        # 优先真实，失败降级模拟器（默认）
+
+输出：
+    frontend/public/snapshot/limitup.json
 """
 from __future__ import annotations
 
-import argparse
 import json
 import os
 import sys
 import time
-import urllib.error
-import urllib.request
 from datetime import datetime
 
+# 确保能找到 app 模块
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+# ---- 读取 SOURCE_MODE 环境变量，在导入 app 之前生效 ----
+_source_mode = os.environ.get("SOURCE_MODE", "auto")
+os.environ.setdefault("SOURCE_MODE", _source_mode)
+
+from app.config import settings  # noqa: E402
+# 运行时覆盖配置（环境变量优先级高于 .env）
+settings.SOURCE_MODE = _source_mode  # type: ignore
+
+from app.data.provider import (  # noqa: E402
+    get_latest_trade_date,
+    get_limit_up_data,
+    get_previous_limit_up,
+    get_collector_type,
+)
+
+# 输出目录
 OUT_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
     "frontend", "public", "snapshot",
 )
 
 
-def fetch(base: str, path: str, timeout: int = 60):
-    url = f"{base}{path}"
-    try:
-        req = urllib.request.Request(url, headers={"User-Agent": "snapshot/1.0"})
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            return json.loads(r.read().decode("utf-8"))
-    except Exception as e:  # noqa: BLE001
-        print(f"  ! {path} 失败: {e}")
-        return None
+def _write_json(name: str, data) -> str:
+    path = os.path.join(OUT_DIR, name)
+    text = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(text)
+    return path
 
 
-def dump(name: str, data, sub: str = "") -> bool:
-    if data is None:
-        return False
-    d = os.path.join(OUT_DIR, sub) if sub else OUT_DIR
-    os.makedirs(d, exist_ok=True)
-    with open(os.path.join(d, name), "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
-    return True
-
-
-# (输出文件名, API 路径)
-ENDPOINTS = [
-    ("health.json", "/api/health"),
-    ("dashboard.json", "/api/dashboard"),
-    ("limitup.json", "/api/limitup"),
-    ("ranking.json", "/api/limitup/ranking"),
-    ("dates.json", "/api/limitup/dates"),
-    ("analysis_industry.json", "/api/analysis/industry"),
-    ("analysis_theme.json", "/api/analysis/theme"),
-    ("analysis_sentiment.json", "/api/analysis/sentiment"),
-    ("analysis_dragon.json", "/api/analysis/dragon"),
-    ("learning_stats.json", "/api/learning/stats"),
-    ("learning_backtest.json", "/api/learning/backtest"),
-    ("learning_logs.json", "/api/learning/logs?limit=30"),
-    ("learning_calibration.json", "/api/learning/calibration"),
-    ("scanner_potential.json", "/api/scanner/potential?limit=10"),
-    ("health_model.json", "/api/health/model"),
-    ("health_evolution.json", "/api/health/evolution"),
-    ("health_pool.json", "/api/health/pool"),
-    ("health_world.json", "/api/health/world"),
-]
+def _simplify_record(rec: dict) -> dict:
+    """精简为用户指定的 limitup.json 字段结构。"""
+    code = str(rec.get("code", ""))
+    return {
+        "code": code,
+        "name": str(rec.get("name", "")),
+        "price": round(float(rec.get("close", 0)), 2),
+        "limit_price": round(float(rec.get("close", 0)) / (1 + float(rec.get("pct_chg", 10)) / 100), 2),
+        "fb_count": int(rec.get("boards", 1)),          # 连板数
+        "fd_amount": round(float(rec.get("seal_amount", 0)) / 1e4, 0),  # 封单额（万元）
+        "reason": str(rec.get("reason", "")),
+        "industry": str(rec.get("industry", "")),
+    }
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--base", default="http://localhost:8008")
-    ap.add_argument("--limit-detail", type=int, default=80)
-    args = ap.parse_args()
-
     t0 = time.time()
     print("=" * 62)
-    print("Limit-Up Quant AI — 静态快照生成")
-    print(f"后端: {args.base}   输出: {OUT_DIR}")
+    print("Limit-Up Quant AI — 涨停快照生成")
+    print(f"  SOURCE_MODE = {settings.SOURCE_MODE}")
+    print(f"  输出目录     = {OUT_DIR}")
     print("=" * 62)
 
-    if fetch(args.base, "/api/health", timeout=10) is None:
-        print("\n后端未运行，无法生成快照。请先启动 uvicorn --port 8008")
-        return 1
-
     os.makedirs(OUT_DIR, exist_ok=True)
-    ok = 0
 
-    print("\n[1/3] 导出主接口...")
-    for name, path in ENDPOINTS:
-        data = fetch(args.base, path)
-        if dump(name, data):
-            ok += 1
-            print(f"  + {name}")
+    # 1. 获取最近交易日
+    trade_date = get_latest_trade_date()
+    collector = get_collector_type()
+    print(f"\n[1/3] 交易日: {trade_date}  数据源: {collector}")
 
-    # ---- 个股详情 ----
-    print(f"\n[2/3] 导出个股详情（最多 {args.limit_detail} 只）...")
-    ranking = fetch(args.base, "/api/limitup/ranking")
-    codes: list[str] = []
-    if ranking and ranking.get("ranking"):
-        codes = [r["code"] for r in ranking["ranking"][: args.limit_detail]]
-    detail_ok = 0
-    for i, code in enumerate(codes, 1):
-        d = fetch(args.base, f"/api/detail/{code}", timeout=45)
-        if dump(f"{code}.json", d, sub="detail"):
-            detail_ok += 1
-        if i % 10 == 0 or i == len(codes):
-            print(f"  进度 {i}/{len(codes)} (成功 {detail_ok})")
+    # 2. 抓取涨停数据
+    print("\n[2/3] 抓取涨停池...")
+    records = get_limit_up_data(trade_date)
+    if not records:
+        print("  ⚠ 涨停池为空（可能是非交易日或网络不可用）")
+        if settings.SOURCE_MODE == "auto":
+            print("  → auto 模式: 降级为模拟器数据")
+            # provider 内部已处理降级，这里再次检查
+            records = get_limit_up_data(trade_date)
 
-    # ---- 元数据 ----
-    print("\n[3/3] 写入元数据...")
-    dash = fetch(args.base, "/api/dashboard")
-    trade_date = "—"
-    collector = "—"
-    if dash:
-        trade_date = dash.get("snapshot", {}).get("trade_date", "—")
-        collector = dash.get("collector", "—")
-    meta = {
+    print(f"  获取 {len(records)} 条涨停记录")
+
+    # 3. 生成 limitup.json
+    simplified = [_simplify_record(r) for r in records]
+    snapshot = {
+        "trade_date": trade_date,
+        "source": collector,
+        "count": len(simplified),
+        "records": simplified,
+    }
+    path = _write_json("limitup.json", snapshot)
+    print(f"\n[3/3] 写入 limitup.json ({os.path.getsize(path):,} bytes)")
+    print(f"  样例: {json.dumps(simplified[0], ensure_ascii=False) if simplified else '(空)'}")
+
+    # 附加：昨日涨停今日表现（仅 akshare 模式）
+    if settings.SOURCE_MODE in ("akshare", "auto"):
+        print("\n[附加] 抓取昨日涨停今日表现...")
+        prev = get_previous_limit_up(trade_date)
+        if prev:
+            prev_path = _write_json("limitup_previous.json", {
+                "trade_date": trade_date,
+                "source": "akshare",
+                "count": len(prev),
+                "records": prev,
+            })
+            print(f"  ✓ limitup_previous.json ({len(prev)} 条)")
+        else:
+            print("  - 昨日涨停数据不可用（非交易日或网络问题）")
+
+    # 元数据
+    _write_json("meta.json", {
         "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "trade_date": trade_date,
         "collector": collector,
-        "endpoints": ok,
-        "details": detail_ok,
-        "detail_codes": codes,
+        "source_mode": settings.SOURCE_MODE,
+        "endpoints": 1,
+        "details": 0,
+        "detail_codes": [],
         "mode": "static-snapshot",
-    }
-    dump("meta.json", meta)
-    print(f"  + meta.json  (交易日 {trade_date} / 数据源 {collector})")
+    })
+    print(f"\n  ✓ meta.json")
 
-    size = sum(
-        os.path.getsize(os.path.join(dp, f))
-        for dp, _, fs in os.walk(OUT_DIR)
-        for f in fs
-    )
+    elapsed = time.time() - t0
     print("\n" + "=" * 62)
-    print(f"完成：{ok} 个接口 + {detail_ok} 只个股详情")
-    print(f"总体积 {size/1024:.0f} KB，耗时 {time.time()-t0:.1f}s")
+    print(f"完成：{len(simplified)} 条涨停记录，数据源 {collector}，耗时 {elapsed:.1f}s")
+    print(f"输出：{OUT_DIR}")
     print("=" * 62)
     return 0
 

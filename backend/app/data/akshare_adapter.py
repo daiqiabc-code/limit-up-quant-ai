@@ -151,6 +151,50 @@ def fetch_limit_up_pool(trade_date: str | None = None) -> list[dict[str, Any]]:
         return _EMPTY_LIST
 
 
+# ==================== 昨日涨停今日表现 ====================
+
+def fetch_previous_limit_up(trade_date: str | None = None) -> list[dict[str, Any]]:
+    """昨日涨停股今日表现（stock_zt_pool_previous_em）。
+
+    返回字段与 fetch_limit_up_pool 保持一致，额外增加 today_pct_chg / today_open_pct。
+    失败时返回空列表，不抛异常。
+    """
+    if not _AK:
+        return _EMPTY_LIST
+    try:
+        if trade_date is None:
+            trade_date = _yesterday()
+        date_fmt = trade_date.replace("-", "")
+        df = ak.stock_zt_pool_previous_em(date=date_fmt)
+        if df is None or df.empty:
+            return _EMPTY_LIST
+
+        records: list[dict[str, Any]] = []
+        for _, r in df.iterrows():
+            code = str(r["代码"])
+            records.append({
+                "trade_date": trade_date,
+                "code": code,
+                "name": str(r.get("名称", "")),
+                "industry": str(r.get("所属行业", "")),
+                "concepts": _guess_concepts(str(r.get("所属行业", ""))),
+                # 昨日涨停价
+                "close": float(r.get("最新价", 0)),
+                "pct_chg": float(r.get("涨跌幅", 0)),
+                # 今日竞价 / 开盘涨幅
+                "today_open_pct": float(r.get("开盘涨幅", 0)),
+                "today_pct_chg": float(r.get("涨跌幅", 0)),
+                "amount": float(r.get("成交额", 0)),
+                "turnover": float(r.get("换手率", 0)),
+                "is_broken": float(r.get("涨跌幅", 0)) < 0,
+                "reason": str(r.get("涨停统计", "")),
+            })
+        return records
+    except Exception as e:
+        print(f"[AKShare] 昨日涨停表现失败: {e}")
+        return _EMPTY_LIST
+
+
 # ==================== 大盘快照 ====================
 
 def fetch_market_snapshot(trade_date: str | None = None) -> dict[str, Any]:
