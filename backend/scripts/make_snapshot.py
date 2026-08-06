@@ -87,14 +87,26 @@ def main() -> int:
     collector = get_collector_type()
     print(f"\n[1/6] 交易日: {trade_date}  数据源: {collector}")
 
-    # 2. 抓取涨停数据
+    # 2. 抓取涨停数据（CI 容错：akshare 失败时强制降级模拟器，保证部署永远有内容）
     print("\n[2/6] 抓取涨停池...")
-    records = get_limit_up_data(trade_date)
+    records: list[dict] = []
+    try:
+        records = get_limit_up_data(trade_date)
+    except Exception as e:
+        print(f"  ⚠ 抓取涨停池异常: {e}")
+
     if not records:
-        print("  ⚠ 涨停池为空（可能是非交易日或网络不可用）")
-        if settings.SOURCE_MODE == "auto":
-            print("  → auto 模式: 降级为模拟器数据")
-            records = get_limit_up_data(trade_date)
+        print("  ⚠ 涨停池为空（可能是非交易日/海外节点连不上东方财富/akshare 异常）")
+        # 关键兜底：无论 akshare 还是 auto 模式，空数据都降级模拟器，保证部署不空
+        print("  → 强制降级为模拟器数据（保证部署永远有内容）")
+        prev_mode = settings.SOURCE_MODE
+        settings.SOURCE_MODE = "simulator"  # type: ignore
+        from app.data.provider import _clear_cache
+        _clear_cache()
+        records = get_limit_up_data(trade_date)
+        # 重新判定数据源标识
+        collector = get_collector_type()
+        print(f"  降级后数据源: {collector}（原模式: {prev_mode}）, 获取 {len(records)} 条")
 
     print(f"  获取 {len(records)} 条涨停记录")
 

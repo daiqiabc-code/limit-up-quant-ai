@@ -2,22 +2,24 @@ name: Daily Limit-Up AI Update
 
 on:
   schedule:
-    # 每天北京时间 16:10 (UTC 8:10) 收盘后自动运行
-    - cron: '10 8 * * 1,2,3,4,5'
-  workflow_dispatch:  # 允许手动触发
+    # 每个交易日北京时间 16:10 收盘后自动运行（UTC 08:10，周一到周五）
+    - cron: '10 8 * * 1-5'
+  workflow_dispatch:  # 允许在 GitHub Actions 页面手动 Run workflow
 
 permissions:
   contents: read
   pages: write
-  id-token: write
+  id-token: write  # deploy-pages 需要写入 Pages 的权限
 
+# 同一时刻只跑一个部署任务，后到的取消先到的
 concurrency:
   group: "pages"
   cancel-in-progress: true
 
 env:
   PYTHONUNBUFFERED: 1
-  SOURCE_MODE: akshare   # CI 无 .env，必须显式开启真实行情；抓取失败 ci_build 会自动降级模拟器
+  # 关键：CI 必须强制真实行情；akshare 抓不到时 make_snapshot 会自动降级模拟器，保证部署永不空白
+  SOURCE_MODE: akshare
 
 jobs:
   update:
@@ -30,41 +32,42 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Python
+      - name: Setup Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
-
-      - name: Install system deps (for akshare)
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq libxml2-dev libxslt1-dev 2>/dev/null || true
+          python-version: '3.11'
 
       - name: Install Python deps
         run: |
           python -m pip install --upgrade pip
-          python -m pip install akshare scikit-learn numpy uvicorn fastapi
+          # 装后端依赖（含 akshare/scikit-learn/numpy/pydantic-settings）；
+          # CI 只跑数据脚本，不启动 uvicorn 后端服务
+          python -m pip install -r backend/requirements.txt
 
-      - name: Verify akshare works
-        run: python -c "import akshare as ak, datetime; d=datetime.date.today().strftime('%Y%m%d'); df=ak.stock_zt_pool_em(date=d); print(f'akshare OK, rows={len(df)}')" || echo "akshare verify skipped (CI 将自动降级)"
-
-      - name: Setup Node
+      - name: Setup Node 20
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20'
 
       - name: Install frontend deps
         run: cd frontend && npm install
 
-      - name: Generate data (no backend needed)
+      - name: Generate snapshots
+        # 直接调用数据层生成快照，绝不启动 uvicorn/curl（CI 里后端起不来会 Connection refused）
         run: |
           cd backend
-          python -m scripts.ci_build
+          python -m scripts.make_snapshot
+
+      - name: Run auto-evolve (learning + health 进化痕迹)
+        # 用次日实际表现验证预测并驱动策略池进化；非致命，失败也不阻塞部署
+        run: |
+          cd backend
+          python -m scripts.auto_evolve --force || echo "auto_evolve 非致命，继续部署"
 
       - name: Build frontend
         run: |
           cd frontend
-          rm -rf dist
+          rm -rf dist   # 先清空 dist 防陈旧文件残留
           npx vite build
 
       - name: Setup Pages
