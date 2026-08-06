@@ -1,11 +1,11 @@
-"""世界模型：市场环境感知 + 自适应置信度
+"""世界模型：市场环境感知 + 自适应置信度 + 权重微调
 
 按进化引擎「世界模型」柱 + 「因果推理」柱：
-  - 跟踪市场状态（波动率、涨停家数、连板占比、涨跌比）
-  - 聚类/离散化为 6 种市场环境
+  - 跟踪市场状态（涨停家数、连板高度、封板率、跌停数等）
+  - 分类为 6 种市场环境
+  - 不同环境下微调 5 维评分权重
   - 记录各环境下模型预测准确率
   - 预测时提供环境自适应置信度区间
-  - 反事实推理：如果换到其他环境，预测会怎样变化
 """
 
 import json
@@ -29,12 +29,58 @@ ENV_LABELS = [
     "正常偏强",    # 平衡偏强
 ]
 
+# 各环境的中文描述
+ENV_DESCRIPTIONS = {
+    "趋势牛市": "市场整体上涨为主，赚钱效应好，适合趋势接力",
+    "震荡整理": "涨跌均衡，无明显方向，宜谨慎操作",
+    "情绪亢奋": "涨停家数多、连板高度高，市场情绪过热，注意退潮风险",
+    "恐慌下跌": "多数个股下跌，市场恐慌情绪蔓延，降低仓位",
+    "冰点缩量": "涨停稀少、成交低迷，市场观望情绪重",
+    "正常偏强": "市场表现偏强但未过热，适合正常接力操作",
+}
+
+# 各环境下 5 维权重的微调系数（乘以基础权重后再归一化）
+# 思路：不同环境下各维度的重要性不同
+ENV_WEIGHT_ADJUSTMENTS: dict[str, dict[str, float]] = {
+    "趋势牛市": {
+        # 牛市中连板动能强，连板权重略升
+        "board_strength": 1.15, "seal_quality": 0.95, "sector_position": 1.10,
+        "theme_freshness": 1.05, "volume_health": 0.90,
+    },
+    "震荡整理": {
+        # 震荡市中封单质量和量价健康更重要
+        "board_strength": 0.85, "seal_quality": 1.20, "sector_position": 1.05,
+        "theme_freshness": 0.95, "volume_health": 1.15,
+    },
+    "情绪亢奋": {
+        # 亢奋期题材新鲜度最重要（主线热点溢价），连板权重略升
+        "board_strength": 1.10, "seal_quality": 0.90, "sector_position": 1.15,
+        "theme_freshness": 1.20, "volume_health": 0.80,
+    },
+    "恐慌下跌": {
+        # 恐慌时连板不可靠（容易炸板），封单质量和量价健康更重要
+        "board_strength": 0.70, "seal_quality": 1.30, "sector_position": 1.10,
+        "theme_freshness": 0.85, "volume_health": 1.25,
+    },
+    "冰点缩量": {
+        # 冰点时量价信号弱，题材和板块地位更重要
+        "board_strength": 0.90, "seal_quality": 1.05, "sector_position": 1.15,
+        "theme_freshness": 1.10, "volume_health": 0.85,
+    },
+    "正常偏强": {
+        # 正常环境，不做调整
+        "board_strength": 1.00, "seal_quality": 1.00, "sector_position": 1.00,
+        "theme_freshness": 1.00, "volume_health": 1.00,
+    },
+}
+
 
 def _compute_env_signals(limit_up_data: list[dict], snapshot: dict | None) -> dict[str, float]:
     """从涨停数据和市场快照中提取环境信号。"""
     n = len(limit_up_data)
     if n == 0:
-        return {"zt_count": 0, "avg_turnover": 0, "board_ratio": 0, "avg_change": 0}
+        return {"zt_count": 0, "avg_turnover": 0, "board_ratio": 0, "avg_change": 0,
+                "max_boards": 0, "limit_down_count": 0, "break_rate": 0}
 
     boards = [r.get("boards", 1) for r in limit_up_data]
     turnovers = [r.get("turnover", 5.0) for r in limit_up_data if r.get("turnover")]
@@ -51,27 +97,64 @@ def _compute_env_signals(limit_up_data: list[dict], snapshot: dict | None) -> di
         "board_ratio": round(board_ratio, 4),
         "up_ratio": round(up_ratio, 4),
         "avg_boards": round(sum(boards) / max(n, 1), 2),
+        "max_boards": max(boards) if boards else 0,
+        "limit_down_count": snap.get("limit_down_count", 0),
+        "break_rate": snap.get("break_rate", 0),
     }
 
 
 def classify_environment(signals: dict[str, float]) -> str:
-    """根据环境信号分类到 6 种市场环境。"""
+    """根据环境信号分类到 6 种市场环境。
+
+    判断依据：涨停数量、连板高度、封板率、跌停数、涨跌比、换手率。
+    """
     zt = signals.get("zt_count", 0)
     board = signals.get("board_ratio", 0)
     up = signals.get("up_ratio", 0.5)
     turnover = signals.get("avg_turnover", 5)
+    max_boards = signals.get("max_boards", 0)
+    limit_down = signals.get("limit_down_count", 0)
+    break_rate = signals.get("break_rate", 0)
 
-    if up >= 0.65 and turnover >= 3:
-        return "趋势牛市"
-    if board >= 0.3 and zt >= 30:
-        return "情绪亢奋"
-    if up <= 0.25:
+    # 恐慌下跌：跌停数多 + 涨跌比低
+    if up <= 0.30 or limit_down >= 30:
         return "恐慌下跌"
-    if zt <= 15 and turnover <= 2:
+
+    # 情绪亢奋：涨停多 + 连板占比高 + 最高板高
+    if zt >= 50 and (board >= 0.25 or max_boards >= 4):
+        return "情绪亢奋"
+
+    # 冰点缩量：涨停少 + 换手低
+    if zt <= 15 and turnover <= 2.5:
         return "冰点缩量"
-    if 0.4 <= up <= 0.6 and turnover <= 4:
+
+    # 趋势牛市：涨跌比高 + 换手正常
+    if up >= 0.60 and turnover >= 3:
+        return "趋势牛市"
+
+    # 震荡整理：涨跌均衡 + 波动低
+    if 0.40 <= up <= 0.60 and turnover <= 4 and break_rate <= 20:
         return "震荡整理"
+
     return "正常偏强"
+
+
+def get_env_weight_adjustment(environment: str) -> dict[str, float]:
+    """获取指定环境下的权重微调系数。"""
+    return ENV_WEIGHT_ADJUSTMENTS.get(environment, ENV_WEIGHT_ADJUSTMENTS["正常偏强"])
+
+
+def apply_env_weights(
+    base_weights: dict[str, float], environment: str
+) -> dict[str, float]:
+    """根据市场环境微调基础权重并归一化。
+
+    例如：恐慌下跌时降低连板权重、提高封单权重。
+    """
+    adj = get_env_weight_adjustment(environment)
+    adjusted = {k: base_weights.get(k, 0.2) * adj.get(k, 1.0) for k in base_weights}
+    total = sum(adjusted.values()) or 1.0
+    return {k: round(v / total, 4) for k, v in adjusted.items()}
 
 
 def _env_confidence_factor(environment: str) -> float:
@@ -211,6 +294,33 @@ class WorldModel:
             "environments": summary_data,
         }
 
+    def classify_current(
+        self, limit_up_data: list[dict], snapshot: dict | None = None
+    ) -> dict[str, Any]:
+        """判断当前市场环境并返回完整诊断信息。
+
+        返回：环境标签 + 信号指标 + 权重微调建议 + 中文描述。
+        """
+        signals = _compute_env_signals(limit_up_data, snapshot)
+        env = classify_environment(signals)
+        self.last_env = env
+        self.last_signals = signals
+
+        # 获取权重微调
+        weight_adj = get_env_weight_adjustment(env)
+
+        return {
+            "environment": env,
+            "env_description": ENV_DESCRIPTIONS.get(env, ""),
+            "signals": signals,
+            "weight_adjustments": weight_adj,
+            "confidence_factor": _env_confidence_factor(env),
+            "all_envs": [
+                {"name": e, "description": ENV_DESCRIPTIONS.get(e, "")}
+                for e in ENV_LABELS
+            ],
+        }
+
 
 # 全局单实例
 _wm: WorldModel | None = None
@@ -222,3 +332,10 @@ def get_world() -> WorldModel:
         _wm = WorldModel()
         _wm.load()
     return _wm
+
+
+def get_world_env(
+    limit_up_data: list[dict], snapshot: dict | None = None
+) -> dict[str, Any]:
+    """快捷函数：判断当前市场环境。"""
+    return get_world().classify_current(limit_up_data, snapshot)

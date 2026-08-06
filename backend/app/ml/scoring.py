@@ -880,20 +880,105 @@ def _score_volume_health(
 
 # ---- 5 维评分入口 ----
 
+# 维度中文名映射（用于 explain 输出）
+DIM_CN_NAMES = {
+    "board_strength": "连板强度",
+    "seal_quality": "封单质量",
+    "sector_position": "板块地位",
+    "theme_freshness": "题材新鲜度",
+    "volume_health": "量价健康",
+}
+
+
+def _compute_explain(
+    subs: dict[str, float],
+    weights: dict[str, float],
+    rec: dict,
+) -> dict[str, Any]:
+    """因果可解释：计算每个维度对总分的边际贡献。
+
+    方法：以 50 分为中性基准，计算 (实际分 - 50) × 权重 = 贡献分值。
+    正值表示该维度抬升了总分，负值表示拉低了总分。
+    """
+    contributions = {}
+    for k in subs:
+        # 贡献 = (实际得分 - 中性基准50) × 权重
+        delta = (subs[k] - 50.0) * weights.get(k, 0.2)
+        contributions[k] = round(delta, 1)
+
+    # 排序：正贡献降序，负贡献升序
+    positive = sorted(
+        [(k, v) for k, v in contributions.items() if v > 0],
+        key=lambda x: -x[1],
+    )[:3]
+    negative = sorted(
+        [(k, v) for k, v in contributions.items() if v < 0],
+        key=lambda x: x[1],
+    )[:3]
+
+    # 生成人类可读的贡献描述
+    def _fmt_contribution(k: str, v: float) -> str:
+        cn = DIM_CN_NAMES.get(k, k)
+        sign = "+" if v > 0 else ""
+        return f"{cn}{sign}{v}分"
+
+    return {
+        "top_positive": [
+            {"dimension": k, "dimension_cn": DIM_CN_NAMES.get(k, k), "contribution": v,
+             "desc": _fmt_contribution(k, v)}
+            for k, v in positive
+        ],
+        "top_negative": [
+            {"dimension": k, "dimension_cn": DIM_CN_NAMES.get(k, k), "contribution": v,
+             "desc": _fmt_contribution(k, v)}
+            for k, v in negative
+        ],
+        "all_contributions": {DIM_CN_NAMES.get(k, k): v for k, v in contributions.items()},
+        "summary": _gen_explain_summary(positive, negative, rec),
+    }
+
+
+def _gen_explain_summary(
+    positive: list[tuple[str, float]],
+    negative: list[tuple[str, float]],
+    rec: dict,
+) -> str:
+    """生成一句话因果解释摘要。"""
+    parts = []
+    if positive:
+        pk = DIM_CN_NAMES.get(positive[0][0], positive[0][0])
+        parts.append(f"↑{pk}贡献+{positive[0][1]}分")
+    if len(positive) >= 2:
+        pk2 = DIM_CN_NAMES.get(positive[1][0], positive[1][0])
+        parts.append(f"{pk2}+{positive[1][1]}")
+    if negative:
+        nk = DIM_CN_NAMES.get(negative[0][0], negative[0][0])
+        parts.append(f"↓{nk}拖累{negative[0][1]}分")
+    if not parts:
+        parts.append("各维度影响均衡")
+    return "，".join(parts)
+
+
 def score_five_dimensions(
     rec: dict,
     all_records: list[dict],
     theme_stats: dict[str, int],
+    weights: dict[str, float] | None = None,
 ) -> dict[str, Any]:
     """对单只涨停股计算 5 维评分。
+
+    weights: 自定义权重（如来自策略池或环境微调），默认用经验值。
 
     返回：
         {
             "sub_scores": {"board_strength": 63.0, "seal_quality": 78.0, ...},
             "total_score": 72.5,
             "weights": {...},
+            "explain": {...},
         }
     """
+    w = weights or FIVE_DIM_WEIGHTS
+
     boards = int(rec.get("boards", 1))
     seal_amount = float(rec.get("seal_amount", 0))
     float_mv = float(rec.get("float_mv", 50))
@@ -913,13 +998,16 @@ def score_five_dimensions(
     }
 
     total = round(
-        sum(subs[k] * w for k, w in FIVE_DIM_WEIGHTS.items()), 1
+        sum(subs[k] * w.get(k, 0.2) for k in subs), 1
     )
+
+    explain = _compute_explain(subs, w, rec)
 
     return {
         "sub_scores": subs,
         "total_score": total,
-        "weights": dict(FIVE_DIM_WEIGHTS),
+        "weights": dict(w),
+        "explain": explain,
     }
 
 
@@ -983,11 +1071,14 @@ def compute_rel_grade_batch(scores: list[float]) -> list[dict[str, Any]]:
 def score_limit_up_batch(
     records: list[dict],
     theme_stats: dict[str, int] | None = None,
+    weights: dict[str, float] | None = None,
 ) -> list[dict[str, Any]]:
-    """批量评分：对一组涨停股计算 5 维评分 + 双评级 + 一句话理由。
+    """批量评分：对一组涨停股计算 5 维评分 + 双评级 + 因果解释。
+
+    weights: 自定义权重（如来自策略池主策略 + 环境微调），默认用经验值。
 
     返回列表按总分降序排列，每条包含：
-        code, name, boards, total_score, sub_scores, abs_grade, rel_grade, percentile, reason
+        code, name, boards, total_score, sub_scores, abs_grade, rel_grade, percentile, reason, explain
     """
     if theme_stats is None:
         # 自动从 records 统计题材热度
@@ -998,7 +1089,7 @@ def score_limit_up_batch(
 
     scored: list[dict[str, Any]] = []
     for rec in records:
-        result = score_five_dimensions(rec, records, theme_stats)
+        result = score_five_dimensions(rec, records, theme_stats, weights)
         subs = result["sub_scores"]
         total = result["total_score"]
 
@@ -1018,6 +1109,7 @@ def score_limit_up_batch(
             "limit_type": rec.get("limit_type", ""),
             "sub_scores": subs,
             "total_score": total,
+            "explain": result["explain"],
         })
 
     # 按总分降序
