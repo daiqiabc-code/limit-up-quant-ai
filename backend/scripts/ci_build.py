@@ -28,23 +28,49 @@ from app.ml.world_model import get_world
 OUT = os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "public", "snapshot")
 os.makedirs(OUT, exist_ok=True)
 
+import app.config as _cfg
+import app.data.provider as _prov
+
+
+def _try_real(trade_date: str, attempts: int = 3):
+    """多次尝试抓取真实涨停池，成功返回 list，全部失败返回 []。"""
+    for i in range(attempts):
+        try:
+            _prov._clear_cache()
+            data = _prov.get_limit_up_data(trade_date)
+            if data:
+                return data
+            print(f"  · 真实数据为空 (尝试 {i+1}/{attempts})")
+        except Exception as e:  # noqa: BLE001
+            print(f"  · 真实数据抓取异常: {e} (尝试 {i+1}/{attempts})")
+    return []
+
+
 trade_date = get_latest_trade_date()
-print(f"CI Build — 交易日 {trade_date}")
+_source = os.environ.get("SOURCE_MODE", _cfg.settings.SOURCE_MODE)
+print(f"CI Build — 交易日 {trade_date}  SOURCE_MODE={_source}")
 t0 = time.time()
 
 
 def write_json(name: str, data):
     path = os.path.join(OUT, name)
+    text = json.dumps(data, ensure_ascii=False)
     with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False)
-    print(f"  ✓ {name} ({len(f.getvalue()):,} bytes)")
+        f.write(text)
+    print(f"  ✓ {name} ({len(text):,} bytes)")
     return path
 
 
 # ---- 核心接口 ----
 write_json("health.json", {"status": "ok", "app": "Limit-Up Quant AI", "collector": get_collector_type()})
 
-limits = get_limit_up_data(trade_date)
+# 先抓真实数据；若全部失败（如 CI 节点连不上行情源）则降级模拟器，保证部署绝不空白
+limits = _try_real(trade_date)
+if not limits and _source != "simulator":
+    print("  ⚠ 真实行情不可用，降级为模拟器数据（部署仍可正常打开）")
+    _cfg.settings.SOURCE_MODE = "simulator"
+    _prov._clear_cache()
+    limits = _prov.get_limit_up_data(trade_date)
 write_json("limitup.json", {"trade_date": trade_date, "count": len(limits), "records": limits})
 
 # AI 排行榜
@@ -80,7 +106,7 @@ write_json("dates.json", {"dates": get_available_dates()})
 # 分析模块（简化版）
 from app.data.provider import get_theme_stats
 write_json("analysis_industry.json", {"trade_date": trade_date, "industries": []})
-write_json("analysis_theme.json", {"trade_date": trade_date, "themes": [{"name": t, "count": c} for t, c in get_theme_stats(trade_date).items()][:20]})
+write_json("analysis_theme.json", {"trade_date": trade_date, "themes": get_theme_stats(trade_date)[:20]})
 write_json("analysis_sentiment.json", {"trade_date": trade_date, "score": 50})
 write_json("analysis_dragon.json", {"trade_date": trade_date, "records": []})
 
