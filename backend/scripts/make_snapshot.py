@@ -39,8 +39,9 @@ from app.data.provider import (  # noqa: E402
     get_market_snapshot,
 )
 from app.ml.scoring import score_limit_up_batch  # noqa: E402
-from app.ml.strategy_pool import get_pool  # noqa: E402
+from app.ml.strategy_pool import get_pool, get_active_gene  # noqa: E402
 from app.ml.world_model import get_world_env, apply_env_weights  # noqa: E402
+from app.ml.health import get_model_health, get_evolution_health  # noqa: E402
 
 # 输出目录
 OUT_DIR = os.path.join(
@@ -125,11 +126,22 @@ def main() -> int:
     # 4. AI 评分：5 维评分 + 双评级 + 因果解释 → scanner_potential.json + ranking.json
     print(f"\n[4/6] AI 5 维评分引擎...")
 
-    # 4a. 策略池：获取主策略权重
+    # 4a. 策略池：获取主策略权重 + 基因参数
     pool = get_pool()
     active_strategy = pool.get_active_strategy()
     base_weights = active_strategy.weights
+    active_gene = get_active_gene()
     print(f"  主策略: [{active_strategy.style}] {active_strategy.version}  fitness={active_strategy.fitness}")
+    # 展示基因与默认值的差异（若有）
+    from app.ml.scoring import DEFAULT_GENE, GENE_BOUNDS
+    gene_diffs = []
+    for k in GENE_BOUNDS:
+        cur = float(getattr(active_gene, k))
+        default = float(getattr(DEFAULT_GENE, k))
+        if abs(cur - default) > 1e-6:
+            gene_diffs.append(f"{k}:{round(cur,3)}(默认{round(default,3)})")
+    if gene_diffs:
+        print(f"  基因变异: {{{', '.join(gene_diffs)}}}")
 
     # 4b. 世界模型：判断市场环境 + 微调权重
     snap = get_market_snapshot(trade_date)
@@ -139,10 +151,10 @@ def main() -> int:
     print(f"  市场环境: {env_label}  置信系数: {world_env['confidence_factor']}")
     print(f"  权重微调: {{{', '.join(f'{k}:{round(v,3)}' for k, v in final_weights.items())}}}")
 
-    # 4c. 评分（使用策略池主策略 + 环境微调后的权重）
+    # 4c. 评分（使用策略池主策略权重 + 基因 + 环境微调）
     theme_stats_raw = get_theme_stats(trade_date)
     theme_stats = {t["name"]: t["count"] for t in theme_stats_raw}
-    scored = score_limit_up_batch(records, theme_stats, final_weights)
+    scored = score_limit_up_batch(records, theme_stats, final_weights, active_gene)
     print(f"  评分完成：{len(scored)} 只")
 
     # 评分分布统计
@@ -159,6 +171,8 @@ def main() -> int:
 
     # scanner_potential.json：今日涨停潜力榜（按总分降序，前 60 只）
     top_60 = scored[:60]
+    # 当前批次使用的基因参数（所有条目共享同一基因，取首条即可）
+    s_gene_params = scored[0].get("gene_params") if scored else None
     scanner_data = {
         "trade_date": trade_date,
         "source": collector,
@@ -166,6 +180,7 @@ def main() -> int:
         "environment": env_label,
         "active_strategy": active_strategy.style,
         "weights": {k: round(v, 4) for k, v in final_weights.items()},
+        "gene_params": s_gene_params,
         "ranking": [
             {
                 "rank": i + 1,
@@ -196,6 +211,7 @@ def main() -> int:
         "count": len(scored),
         "environment": env_label,
         "active_strategy": active_strategy.style,
+        "gene_params": s_gene_params,  # 当前使用的基因参数（便于 auto_evolve 复现/审计）
         "ranking": [
             {
                 "rank": i + 1,
@@ -211,7 +227,9 @@ def main() -> int:
                 "reason": s["reason"],
                 "explain": s["explain"],
                 "industry": s["industry"],
+                "concepts": s["concepts"],  # 供 auto_evolve 重新打分
                 "seal_time": s["seal_time"],
+                "seal_amount": s["seal_amount"],  # 供 auto_evolve 重新打分
                 "break_times": s["break_times"],
                 "limit_type": s["limit_type"],
                 "float_mv": s["float_mv"],
@@ -235,6 +253,13 @@ def main() -> int:
     # health_world.json
     _write_json("health_world.json", world_env)
     print(f"  ✓ health_world.json (环境={env_label})")
+
+    # health_model.json + health_evolution.json
+    # 之前仅由 ci_build.py 生成，导致线上日更后这两个快照陈旧、前端进化面板无数据。
+    # 现并入 make_snapshot，保证每日与策略池/世界模型同步刷新。
+    _write_json("health_model.json", get_model_health())
+    _write_json("health_evolution.json", get_evolution_health())
+    print(f"  ✓ health_model.json + health_evolution.json (含多目标指标 + 进化趋势)")
 
     # 6. 附加 + 元数据
     print(f"\n[6/6] 附加数据...")

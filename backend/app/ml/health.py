@@ -34,6 +34,8 @@ def _load_health() -> dict[str, Any]:
         "last_evolve": None,
         "training_samples": 0,
         "pending_samples_since_train": 0,
+        "evolution_history": [],
+        "last_evolution": {},
     }
 
 
@@ -77,14 +79,41 @@ def record_verification(accuracy: float, brier: float, sample_count: int, model_
     return entry
 
 
-def record_evolve(model_version: str, train_samples: int) -> dict:
-    """每次 auto_evolve 重训后调用。"""
+def record_evolve(model_version: str, train_samples: int, evolution_summary: dict | None = None) -> dict:
+    """每次 auto_evolve 重训后调用。
+
+    evolution_summary: 策略池进化摘要（pool.evolve() 返回值），含 generation/best_fitness/
+        best_accuracy/acc_limit/acc_open/rank_corr/gene_params 等。若提供则记录多目标指标。
+    """
     h = _load_health()
     h["evolve_cycles"] += 1
     h["last_evolve"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     h["training_samples"] = train_samples
     h["pending_samples_since_train"] = 0
     h["model_version"] = model_version
+
+    # 记录策略池进化摘要（多目标指标 + 基因）
+    if evolution_summary:
+        evo_entry = {
+            "timestamp": h["last_evolve"],
+            "generation": evolution_summary.get("generation", 0),
+            "best_version": evolution_summary.get("best_version", ""),
+            "best_style": evolution_summary.get("best_style", ""),
+            "best_fitness": evolution_summary.get("best_fitness", 0.0),
+            "best_accuracy": evolution_summary.get("best_accuracy", 0.0),
+            "acc_limit": evolution_summary.get("acc_limit", 0.0),
+            "acc_open": evolution_summary.get("acc_open", 0.0),
+            "rank_corr": evolution_summary.get("rank_corr", 0.0),
+            "best_brier": evolution_summary.get("best_brier", 0.0),
+            "improvement": evolution_summary.get("improvement", 0.0),
+        }
+        h.setdefault("evolution_history", []).append(evo_entry)
+        # 只保留最近 30 代
+        if len(h["evolution_history"]) > 30:
+            h["evolution_history"] = h["evolution_history"][-30:]
+        # 更新最新进化状态
+        h["last_evolution"] = evo_entry
+
     _save_health(h)
     return h
 
@@ -183,7 +212,7 @@ def get_model_health() -> dict[str, Any]:
 
 
 def get_evolution_health() -> dict[str, Any]:
-    """返回进化系统健康状态。"""
+    """返回进化系统健康状态（对齐到策略池进化）。"""
     h = _load_health()
     model = get_model()
 
@@ -225,6 +254,29 @@ def get_evolution_health() -> dict[str, Any]:
     elif stage == "mature":
         next_stage_at = 50 - total
 
+    # 从策略池获取实时状态（对齐到 strategy_pool 进化）
+    pool_status = {}
+    try:
+        from app.ml.strategy_pool import get_pool
+        pool = get_pool()
+        active = pool.get_active_strategy()
+        pool_status = {
+            "generation": pool.generation,
+            "total_evolves": pool.total_evolves,
+            "active_style": active.style,
+            "active_fitness": active.fitness,
+            "active_accuracy": active.accuracy,
+            "active_acc_limit": active.acc_limit,
+            "active_acc_open": active.acc_open,
+            "active_rank_corr": active.rank_corr,
+            "active_brier": active.brier,
+        }
+    except Exception:
+        pass
+
+    # 最近一代进化记录（含多目标指标）
+    last_evolution = h.get("last_evolution", {})
+
     return {
         "evolve_cycles": total,
         "evolution_stage": stage,
@@ -239,4 +291,10 @@ def get_evolution_health() -> dict[str, Any]:
         "training_samples": h["training_samples"],
         "pending_samples": h.get("pending_samples_since_train", 0),
         "retrain_recommended": h.get("pending_samples_since_train", 0) >= 20,
+        # 策略池实时状态
+        "strategy_pool": pool_status,
+        # 最近一代进化的多目标指标
+        "last_evolution": last_evolution,
+        # 进化历史趋势（最近 10 代）
+        "evolution_trend": h.get("evolution_history", [])[-10:],
     }

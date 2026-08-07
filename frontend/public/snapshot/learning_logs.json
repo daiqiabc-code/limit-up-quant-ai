@@ -2,17 +2,33 @@
   "logs": [
     {
       "date": "20260805",
-      "actual_date": "20260805",
-      "timestamp": "2026-08-06 09:16:10",
-      "total": 103,
-      "verified": 103,
-      "hit_count": 103,
-      "accuracy": 1.0,
-      "brier": 0.204,
-      "environment": "情绪亢奋",
+      "actual_date": "20260806",
+      "timestamp": "2026-08-07 03:32:22",
+      "total": 83,
+      "verified": 83,
+      "hit_count": 0,
+      "accuracy": 0.0,
+      "brier": 0.3611,
+      "environment": "趋势牛市",
+      "label_source": "akshare_ztpool",
       "event": "prediction_verification",
-      "level": "info",
-      "summary": "20260805 预测验证: 103只, 命中103, 准确率100.0%"
+      "level": "warning",
+      "summary": "20260805 预测验证: 83只, 命中0, 准确率0.0% (源:akshare_ztpool)"
+    },
+    {
+      "date": "20260806",
+      "actual_date": "20260806",
+      "timestamp": "2026-08-07 03:02:05",
+      "total": 79,
+      "verified": 79,
+      "hit_count": 22,
+      "accuracy": 0.2785,
+      "brier": 0.2546,
+      "environment": "情绪亢奋",
+      "label_source": "akshare_previous",
+      "event": "prediction_verification",
+      "level": "warning",
+      "summary": "20260806 预测验证: 79只, 命中22, 准确率27.9% (源:akshare_previous)"
     }
   ]
 }

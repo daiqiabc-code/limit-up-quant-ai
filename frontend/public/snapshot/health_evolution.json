@@ -1,1 +1,67 @@
-{"evolve_cycles": 2, "evolution_stage": "embryonic", "evolution_stage_label": "萌芽阶段 · 基础记录", "next_stage_in": 3, "last_evolve": "2026-08-05 16:06:13", "model_version": "evolved-20260805-1606", "learnings_count": 0, "learnings_pending": 0, "errors_count": 0, "active_anomalies": 0, "training_samples": 276, "pending_samples": 0, "retrain_recommended": false}
+{
+  "evolve_cycles": 3,
+  "evolution_stage": "embryonic",
+  "evolution_stage_label": "萌芽阶段 · 基础记录",
+  "next_stage_in": 2,
+  "last_evolve": "2026-08-07 03:32:22",
+  "model_version": "v0",
+  "learnings_count": 0,
+  "learnings_pending": 0,
+  "errors_count": 0,
+  "active_anomalies": 0,
+  "training_samples": 269,
+  "pending_samples": 0,
+  "retrain_recommended": false,
+  "strategy_pool": {
+    "generation": 3,
+    "total_evolves": 3,
+    "active_style": "均衡型",
+    "active_fitness": 0.193,
+    "active_accuracy": 0.4089,
+    "active_acc_limit": 0.6022,
+    "active_acc_open": 0.2937,
+    "active_rank_corr": 0.1414,
+    "active_brier": 0.3242
+  },
+  "last_evolution": {
+    "timestamp": "2026-08-07 03:32:22",
+    "generation": 3,
+    "best_version": "gen0-zq64",
+    "best_style": "均衡型",
+    "best_fitness": 0.193,
+    "best_accuracy": 0.4089,
+    "acc_limit": 0.6022,
+    "acc_open": 0.2937,
+    "rank_corr": 0.1414,
+    "best_brier": 0.3242,
+    "improvement": 0.0
+  },
+  "evolution_trend": [
+    {
+      "timestamp": "2026-08-07 03:30:14",
+      "generation": 2,
+      "best_version": "gen2-7yzw",
+      "best_style": "均衡型×均衡型(变异)",
+      "best_fitness": 0.2227,
+      "best_accuracy": 0.4624,
+      "acc_limit": 0.5538,
+      "acc_open": 0.2957,
+      "rank_corr": 0.143,
+      "best_brier": 0.3018,
+      "improvement": 0.0003
+    },
+    {
+      "timestamp": "2026-08-07 03:32:22",
+      "generation": 3,
+      "best_version": "gen0-zq64",
+      "best_style": "均衡型",
+      "best_fitness": 0.193,
+      "best_accuracy": 0.4089,
+      "acc_limit": 0.6022,
+      "acc_open": 0.2937,
+      "rank_corr": 0.1414,
+      "best_brier": 0.3242,
+      "improvement": 0.0
+    }
+  ]
+}

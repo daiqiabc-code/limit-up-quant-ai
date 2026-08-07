@@ -669,53 +669,104 @@ FIVE_DIM_WEIGHTS: dict[str, float] = {
 }
 
 
-def _score_board_strength(boards: int) -> float:
-    """连板强度：连板越高分越高，但超过 5 板衰减。
+# ====================================================================
+# 参数化基因：打分函数的可调参数（由策略池遗传进化优化）
+# 每个参数初始值 = 旧硬编码值，保证默认行为不变
+# ====================================================================
 
-    1板 40-52 / 2板 55-70 / 3板 72-85 / 4板 80-92 / 5板 85-90 / 6+板衰减
+@dataclass
+class GeneParams:
+    """打分函数的可调参数基因。进化时这些参数会变异/交叉。"""
+    # 连板强度
+    board_peak: float = 5.0           # 峰值连板（此连板数得分最高）
+    board_decay_start: float = 6.0    # 衰减起始连板（≥此值开始衰减）
+    # 封单质量
+    seal_strong_ratio: float = 0.05   # 封单强阈值（封单额/流通市值）
+    # 题材新鲜度
+    theme_golden_low: float = 2.0     # 题材黄金区间下限
+    theme_golden_high: float = 8.0    # 题材黄金区间上限
+    theme_overheat: float = 15.0      # 题材过热阈值
+    # 量价健康
+    vol_healthy_low: float = 5.0      # 换手健康区间下限
+    vol_healthy_high: float = 15.0    # 换手健康区间上限
+    vol_too_high: float = 30.0        # 换手过大阈值
+
+
+# 默认基因（= 旧硬编码值）
+DEFAULT_GENE = GeneParams()
+
+# 各基因参数的合法变异区间（变异后 clip 到此范围，保证合理）
+GENE_BOUNDS: dict[str, tuple[float, float]] = {
+    "board_peak": (3.0, 7.0),
+    "board_decay_start": (4.0, 8.0),
+    "seal_strong_ratio": (0.03, 0.08),
+    "theme_golden_low": (1.0, 4.0),
+    "theme_golden_high": (5.0, 12.0),
+    "theme_overheat": (10.0, 20.0),
+    "vol_healthy_low": (3.0, 8.0),
+    "vol_healthy_high": (10.0, 20.0),
+    "vol_too_high": (25.0, 40.0),
+}
+
+
+def clip_gene(gene: GeneParams) -> GeneParams:
+    """将基因参数 clip 到合法区间。"""
+    d = {}
+    for k in GENE_BOUNDS:
+        lo, hi = GENE_BOUNDS[k]
+        v = float(getattr(gene, k))
+        d[k] = max(lo, min(hi, v))
+    return GeneParams(**d)
+
+
+def _score_board_strength(boards: int, gene: GeneParams | None = None) -> float:
+    """连板强度：连板越高分越高，但超过峰值连板衰减。
+
+    gene.board_peak = 峰值连板（默认5，此连板数得分最高）
+    gene.board_decay_start = 衰减起始连板（默认6，≥此值开始衰减）
     """
+    g = gene or DEFAULT_GENE
+    peak = int(g.board_peak)
+    decay_start = int(g.board_decay_start)
     if boards <= 0:
         return 20.0
-    if boards == 1:
-        return 46.0
-    if boards == 2:
-        return 63.0
-    if boards == 3:
-        return 80.0
-    if boards == 4:
-        return 88.0
-    if boards == 5:
+    # 峰值以下：线性递增映射到 46→88
+    base_map = {1: 46.0, 2: 63.0, 3: 80.0, 4: 88.0}
+    if boards < peak:
+        return base_map.get(boards, 46.0 + (boards - 1) * 12.0)
+    if boards == peak:
         return 86.0
-    if boards == 6:
+    if boards < decay_start:
         return 78.0
-    if boards == 7:
+    if boards == decay_start + 1:
         return 68.0
-    # 8 板以上：高位风险，持续衰减
-    return max(30.0, 68.0 - (boards - 7) * 8.0)
+    # 衰减区：持续衰减
+    return max(30.0, 68.0 - (boards - decay_start - 1) * 8.0)
 
 
-def _score_seal_quality(seal_amount: float, float_mv: float, seal_time: str, break_times: int) -> float:
+def _score_seal_quality(seal_amount: float, float_mv: float, seal_time: str, break_times: int, gene: GeneParams | None = None) -> float:
     """封单质量：封单额/流通市值 比值 + 封板时间 + 炸板扣分。
 
-    seal_ratio = 封单额 / 流通市值（元）
-    > 5% → 90+，2-5% → 70-90，0.5-2% → 50-70，< 0.5% → < 50
+    gene.seal_strong_ratio = 封单强阈值（默认0.05，≥此值给高分）
     """
+    g = gene or DEFAULT_GENE
+    strong = g.seal_strong_ratio
     if float_mv <= 0:
         seal_ratio = 0
     else:
         # seal_amount 单位元，float_mv 单位亿元 → 统一为元
         seal_ratio = seal_amount / (float_mv * 1e8)
 
-    # 基础分：封单比
-    if seal_ratio >= 0.08:
+    # 基础分：封单比（按 gene.seal_strong_ratio 分档）
+    if seal_ratio >= strong * 1.6:       # 默认 0.08
         base = 95.0
-    elif seal_ratio >= 0.05:
+    elif seal_ratio >= strong:           # 默认 0.05
         base = 88.0
-    elif seal_ratio >= 0.03:
+    elif seal_ratio >= strong * 0.6:     # 默认 0.03
         base = 78.0
-    elif seal_ratio >= 0.01:
+    elif seal_ratio >= strong * 0.2:     # 默认 0.01
         base = 65.0
-    elif seal_ratio >= 0.005:
+    elif seal_ratio >= strong * 0.1:     # 默认 0.005
         base = 50.0
     else:
         base = 30.0
@@ -798,30 +849,31 @@ def _score_sector_position(
 
 
 def _score_theme_freshness(
-    concepts: list[str], theme_stats: dict[str, int]
+    concepts: list[str], theme_stats: dict[str, int], gene: GeneParams | None = None
 ) -> float:
     """题材新鲜度：是否当下主线热点。
 
-    最优区间：概念涨停 2-8 只（正在发酵、尚未过热）
-    - 0-1 只：太冷，可能无法持续
-    - 2-8 只：黄金区间
-    - 9-15 只：偏热但仍有机会
-    - 15+ 只：过热，利好出尽
+    gene.theme_golden_low/high = 题材黄金区间（默认2-8）
+    gene.theme_overheat = 过热阈值（默认15）
     """
+    g = gene or DEFAULT_GENE
+    g_low = int(g.theme_golden_low)
+    g_high = int(g.theme_golden_high)
+    overheat = int(g.theme_overheat)
     if not concepts:
         return 35.0
 
     scores = []
     for c in concepts:
         cnt = theme_stats.get(c, 0)
-        if 2 <= cnt <= 8:
-            scores.append(85.0 + (8 - cnt) * 1.5)   # 85-94
+        if g_low <= cnt <= g_high:
+            scores.append(85.0 + (g_high - cnt) * 1.5)   # 黄金区间
         elif cnt == 1:
             scores.append(55.0)                      # 刚起步
         elif cnt == 0:
             scores.append(40.0)                      # 无共识
-        elif 9 <= cnt <= 15:
-            scores.append(60.0 - (cnt - 9) * 2.0)   # 60→44
+        elif cnt <= overheat:
+            scores.append(60.0 - (cnt - g_high - 1) * 2.0)   # 偏热，边际递减
         else:
             scores.append(25.0)                      # 过热
 
@@ -832,28 +884,30 @@ def _score_theme_freshness(
 
 
 def _score_volume_health(
-    turnover: float, amount: float, limit_type: str, break_times: int
+    turnover: float, amount: float, limit_type: str, break_times: int,
+    gene: GeneParams | None = None,
 ) -> float:
     """量价健康：换手充分、不是一字硬顶。
 
-    - 换手率 3-15% → 健康（充分换手）
-    - 换手率 < 2% → 一字硬顶，接力风险高
-    - 换手率 > 30% → 换手过大，分歧严重
-    - 换手板 > T字板 > 一字板（对接力而言）
-    - 成交额太小（< 2 亿）流动性差
+    gene.vol_healthy_low/high = 换手健康区间（默认5-15）
+    gene.vol_too_high = 换手过大阈值（默认30）
     """
-    # 换手率评分
-    if 5 <= turnover <= 15:
+    g = gene or DEFAULT_GENE
+    h_low = g.vol_healthy_low
+    h_high = g.vol_healthy_high
+    too_high = g.vol_too_high
+    # 换手率评分（基于 gene 的健康区间）
+    if h_low <= turnover <= h_high:
         turn_score = 90.0
-    elif 3 <= turnover < 5:
+    elif h_low * 0.6 <= turnover < h_low:
         turn_score = 80.0
-    elif 15 < turnover <= 25:
+    elif h_high < turnover <= h_high * 1.67:
         turn_score = 70.0
-    elif 2 <= turnover < 3:
+    elif h_low * 0.4 <= turnover < h_low * 0.6:
         turn_score = 60.0
-    elif 25 < turnover <= 40:
+    elif h_high * 1.67 < turnover <= too_high * 1.33:
         turn_score = 45.0
-    elif turnover < 2:
+    elif turnover < h_low * 0.4:
         turn_score = 35.0   # 无量一字板
     else:
         turn_score = 25.0   # 换手过大
@@ -964,20 +1018,24 @@ def score_five_dimensions(
     all_records: list[dict],
     theme_stats: dict[str, int],
     weights: dict[str, float] | None = None,
+    gene: GeneParams | None = None,
 ) -> dict[str, Any]:
     """对单只涨停股计算 5 维评分。
 
     weights: 自定义权重（如来自策略池或环境微调），默认用经验值。
+    gene: 打分函数参数基因（来自策略池），默认用 DEFAULT_GENE。
 
     返回：
         {
             "sub_scores": {"board_strength": 63.0, "seal_quality": 78.0, ...},
             "total_score": 72.5,
             "weights": {...},
+            "gene_params": {...},   # 当前使用的基因参数（便于审计/复现）
             "explain": {...},
         }
     """
     w = weights or FIVE_DIM_WEIGHTS
+    g = gene or DEFAULT_GENE
 
     boards = int(rec.get("boards", 1))
     seal_amount = float(rec.get("seal_amount", 0))
@@ -990,11 +1048,11 @@ def score_five_dimensions(
     limit_type = str(rec.get("limit_type", "换手板"))
 
     subs = {
-        "board_strength":  _score_board_strength(boards),
-        "seal_quality":    _score_seal_quality(seal_amount, float_mv, seal_time, break_times),
+        "board_strength":  _score_board_strength(boards, g),
+        "seal_quality":    _score_seal_quality(seal_amount, float_mv, seal_time, break_times, g),
         "sector_position": _score_sector_position(rec, all_records, theme_stats),
-        "theme_freshness": _score_theme_freshness(concepts, theme_stats),
-        "volume_health":   _score_volume_health(turnover, amount, limit_type, break_times),
+        "theme_freshness": _score_theme_freshness(concepts, theme_stats, g),
+        "volume_health":   _score_volume_health(turnover, amount, limit_type, break_times, g),
     }
 
     total = round(
@@ -1007,7 +1065,23 @@ def score_five_dimensions(
         "sub_scores": subs,
         "total_score": total,
         "weights": dict(w),
+        "gene_params": _gene_to_dict(g),
         "explain": explain,
+    }
+
+
+def _gene_to_dict(gene: GeneParams) -> dict[str, float]:
+    """将 GeneParams 序列化为 dict（用于持久化/审计）。"""
+    return {
+        "board_peak": gene.board_peak,
+        "board_decay_start": gene.board_decay_start,
+        "seal_strong_ratio": gene.seal_strong_ratio,
+        "theme_golden_low": gene.theme_golden_low,
+        "theme_golden_high": gene.theme_golden_high,
+        "theme_overheat": gene.theme_overheat,
+        "vol_healthy_low": gene.vol_healthy_low,
+        "vol_healthy_high": gene.vol_healthy_high,
+        "vol_too_high": gene.vol_too_high,
     }
 
 
@@ -1072,13 +1146,15 @@ def score_limit_up_batch(
     records: list[dict],
     theme_stats: dict[str, int] | None = None,
     weights: dict[str, float] | None = None,
+    gene: GeneParams | None = None,
 ) -> list[dict[str, Any]]:
     """批量评分：对一组涨停股计算 5 维评分 + 双评级 + 因果解释。
 
     weights: 自定义权重（如来自策略池主策略 + 环境微调），默认用经验值。
+    gene: 打分函数参数基因（来自策略池），默认用 DEFAULT_GENE。
 
     返回列表按总分降序排列，每条包含：
-        code, name, boards, total_score, sub_scores, abs_grade, rel_grade, percentile, reason, explain
+        code, name, boards, total_score, sub_scores, abs_grade, rel_grade, percentile, reason, explain, gene_params
     """
     if theme_stats is None:
         # 自动从 records 统计题材热度
@@ -1089,7 +1165,7 @@ def score_limit_up_batch(
 
     scored: list[dict[str, Any]] = []
     for rec in records:
-        result = score_five_dimensions(rec, records, theme_stats, weights)
+        result = score_five_dimensions(rec, records, theme_stats, weights, gene)
         subs = result["sub_scores"]
         total = result["total_score"]
 
@@ -1109,6 +1185,7 @@ def score_limit_up_batch(
             "limit_type": rec.get("limit_type", ""),
             "sub_scores": subs,
             "total_score": total,
+            "gene_params": result.get("gene_params"),
             "explain": result["explain"],
         })
 

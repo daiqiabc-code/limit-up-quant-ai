@@ -67,7 +67,7 @@ export default function ModelHealthCard() {
           <div className="panel-header">
             <div className="flex items-center gap-2">
               <Activity size={16} className="text-terminal-accent" />
-              <span className="text-sm font-medium">策略池 · 第 {pool.generation} 代</span>
+              <span className="text-sm font-medium">策略池 · 第 {pool.generation} 代 · 共进化 {pool.total_evolves} 次</span>
             </div>
             <span className="text-xs text-terminal-dim">主策略：{pool.active_style}</span>
           </div>
@@ -77,9 +77,12 @@ export default function ModelHealthCard() {
                 <tr>
                   <th>风格</th>
                   <th className="text-right">适应度</th>
-                  <th className="text-right">准确率</th>
+                  <th className="text-right" title="is_up_next 次日上涨准确率">上涨率</th>
+                  <th className="text-right" title="is_limit_up_next 次日继续涨停准确率">涨停率</th>
+                  <th className="text-right" title="is_open_up 次日红盘开盘准确率">开盘率</th>
+                  <th className="text-right" title="预测概率 vs next_pct 秩相关">秩相关</th>
                   <th className="text-right">Brier</th>
-                  <th className="text-right">样本数</th>
+                  <th className="text-right">样本</th>
                   <th>权重向量</th>
                 </tr>
               </thead>
@@ -92,8 +95,17 @@ export default function ModelHealthCard() {
                         <span className="ml-1 text-[10px] text-terminal-accent">★ 主策略</span>
                       )}
                     </td>
-                    <td className="text-right font-mono">{s.fitness.toFixed(3)}</td>
+                    <td className="text-right font-mono text-terminal-accent">{s.fitness.toFixed(3)}</td>
                     <td className="text-right font-mono">{(s.accuracy * 100).toFixed(1)}%</td>
+                    <td className="text-right font-mono">
+                      {s.acc_limit != null ? `${(s.acc_limit * 100).toFixed(1)}%` : '—'}
+                    </td>
+                    <td className="text-right font-mono">
+                      {s.acc_open != null ? `${(s.acc_open * 100).toFixed(1)}%` : '—'}
+                    </td>
+                    <td className="text-right font-mono">
+                      {s.rank_corr != null ? s.rank_corr.toFixed(2) : '—'}
+                    </td>
                     <td className="text-right font-mono">{s.brier.toFixed(3)}</td>
                     <td className="text-right font-mono">{s.samples_tested}</td>
                     <td className="text-xs text-terminal-dim">
@@ -104,6 +116,20 @@ export default function ModelHealthCard() {
               </tbody>
             </table>
           </div>
+          {/* 主策略基因参数（进化变异的可调阈值） */}
+          {pool.active_gene && (
+            <div className="panel-body border-t border-terminal-border/50">
+              <div className="text-xs text-terminal-dim mb-1">主策略基因（打分阈值，进化时变异）</div>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] font-mono text-terminal-text">
+                {Object.entries(pool.active_gene).map(([k, v]) => (
+                  <span key={k}>
+                    <span className="text-terminal-dim">{k}</span>
+                    <span className="text-terminal-accent ml-1">{typeof v === 'number' ? v.toFixed(3) : v}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

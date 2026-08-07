@@ -1,75 +1,180 @@
 {
-  "model_version": "gen0-bw2o",
-  "active_strategy": "题材驱动型",
-  "generation": 1,
-  "total_evolves": 1,
-  "total_predictions": 103,
-  "total_hits": 103,
-  "overall_accuracy": 1.0,
-  "overall_brier": 0.204,
+  "model_version": "gen0-zq64",
+  "active_strategy": "均衡型",
+  "generation": 3,
+  "total_evolves": 3,
+  "total_predictions": 269,
+  "total_hits": 79,
+  "overall_accuracy": 0.2937,
+  "overall_brier": 0.3854,
   "last_verification": {
     "date": "20260805",
-    "actual_date": "20260805",
-    "verified": 103,
-    "hit_count": 103,
-    "accuracy": 1.0,
-    "brier": 0.204,
-    "environment": "情绪亢奋"
+    "actual_date": "20260806",
+    "verified": 83,
+    "hit_count": 0,
+    "accuracy": 0.0,
+    "brier": 0.3611,
+    "environment": "趋势牛市"
   },
   "environment_stats": {
     "情绪亢奋": {
       "total": 103,
-      "hits": 103,
-      "accuracy": 1.0,
-      "brier": 0.204
+      "hits": 79,
+      "accuracy": 0.767,
+      "brier": 0.235
+    },
+    "趋势牛市": {
+      "total": 166,
+      "hits": 0,
+      "accuracy": 0.0,
+      "brier": 0.4787
     }
   },
   "strategy_pool": {
-    "generation": 1,
-    "active_style": "题材驱动型",
+    "generation": 3,
+    "active_style": "均衡型",
+    "active_gene": {
+      "board_peak": 5.0,
+      "board_decay_start": 6.0,
+      "seal_strong_ratio": 0.05,
+      "theme_golden_low": 2.0,
+      "theme_golden_high": 8.0,
+      "theme_overheat": 15.0,
+      "vol_healthy_low": 5.0,
+      "vol_healthy_high": 15.0,
+      "vol_too_high": 30.0
+    },
     "pool_size": 5,
     "strategies": [
       {
-        "style": "题材驱动型",
-        "fitness": 1.695,
-        "accuracy": 0.8932,
-        "brier": 0.0914,
-        "samples_tested": 103
-      },
-      {
-        "style": "题材驱动型(变异)",
-        "fitness": 1.695,
-        "accuracy": 0.8932,
-        "brier": 0.0914,
-        "samples_tested": 103
-      },
-      {
-        "style": "题材驱动型×均衡型",
-        "fitness": 1.557,
-        "accuracy": 0.835,
-        "brier": 0.1129,
-        "samples_tested": 103
-      },
-      {
         "style": "均衡型",
-        "fitness": 1.2039,
-        "accuracy": 0.699,
-        "brier": 0.1942,
-        "samples_tested": 103
+        "fitness": 0.193,
+        "accuracy": 0.4089,
+        "acc_limit": 0.6022,
+        "acc_open": 0.2937,
+        "rank_corr": 0.1414,
+        "brier": 0.3242,
+        "samples_tested": 269,
+        "gene_params": {
+          "board_peak": 5.0,
+          "board_decay_start": 6.0,
+          "seal_strong_ratio": 0.05,
+          "theme_golden_low": 2.0,
+          "theme_golden_high": 8.0,
+          "theme_overheat": 15.0,
+          "vol_healthy_low": 5.0,
+          "vol_healthy_high": 15.0,
+          "vol_too_high": 30.0
+        }
+      },
+      {
+        "style": "均衡型×均衡型(变异)",
+        "fitness": 0.1926,
+        "accuracy": 0.4089,
+        "acc_limit": 0.6022,
+        "acc_open": 0.2937,
+        "rank_corr": 0.143,
+        "brier": 0.3247,
+        "samples_tested": 269,
+        "gene_params": {
+          "board_peak": 5.0,
+          "board_decay_start": 6.0,
+          "seal_strong_ratio": 0.05,
+          "theme_golden_low": 2.0,
+          "theme_golden_high": 8.0,
+          "theme_overheat": 15.0,
+          "vol_healthy_low": 5.0,
+          "vol_healthy_high": 15.0,
+          "vol_too_high": 30.0
+        }
+      },
+      {
+        "style": "均衡型×均衡型×均衡型(变异)",
+        "fitness": 0.1926,
+        "accuracy": 0.4089,
+        "acc_limit": 0.6022,
+        "acc_open": 0.2937,
+        "rank_corr": 0.1411,
+        "brier": 0.3245,
+        "samples_tested": 269,
+        "gene_params": {
+          "board_peak": 5.0,
+          "board_decay_start": 6.0,
+          "seal_strong_ratio": 0.05,
+          "theme_golden_low": 2.0,
+          "theme_golden_high": 8.0,
+          "theme_overheat": 15.0,
+          "vol_healthy_low": 5.0,
+          "vol_healthy_high": 15.0,
+          "vol_too_high": 30.0
+        }
+      },
+      {
+        "style": "均衡型×均衡型(变异)(变异)",
+        "fitness": 0.1926,
+        "accuracy": 0.4089,
+        "acc_limit": 0.6022,
+        "acc_open": 0.2937,
+        "rank_corr": 0.143,
+        "brier": 0.3247,
+        "samples_tested": 269,
+        "gene_params": {
+          "board_peak": 5.0,
+          "board_decay_start": 6.0,
+          "seal_strong_ratio": 0.05,
+          "theme_golden_low": 2.0,
+          "theme_golden_high": 8.0,
+          "theme_overheat": 15.0,
+          "vol_healthy_low": 5.0,
+          "vol_healthy_high": 15.0,
+          "vol_too_high": 30.0
+        }
       },
       {
         "style": "均衡型(变异)",
-        "fitness": 1.2039,
-        "accuracy": 0.699,
-        "brier": 0.1942,
-        "samples_tested": 103
+        "fitness": 0.1892,
+        "accuracy": 0.4052,
+        "acc_limit": 0.6059,
+        "acc_open": 0.2974,
+        "rank_corr": 0.1392,
+        "brier": 0.3281,
+        "samples_tested": 269,
+        "gene_params": {
+          "board_peak": 5.0,
+          "board_decay_start": 6.0,
+          "seal_strong_ratio": 0.05,
+          "theme_golden_low": 2.0,
+          "theme_golden_high": 8.0,
+          "theme_overheat": 15.0,
+          "vol_healthy_low": 4.924029465206262,
+          "vol_healthy_high": 15.0,
+          "vol_too_high": 30.0
+        }
       }
     ]
   },
   "world_model": {
-    "current_env": "情绪亢奋",
-    "env_accuracy": 1.0,
-    "adjustments": {}
+    "current_env": "趋势牛市",
+    "env_accuracy": 0.0,
+    "adjustments": {
+      "趋势牛市": {
+        "old": {
+          "board_strength": 1.1,
+          "seal_quality": 1.0,
+          "sector_position": 1.05,
+          "theme_freshness": 1.0,
+          "volume_health": 0.95
+        },
+        "new": {
+          "board_strength": 1.05,
+          "seal_quality": 1.0,
+          "sector_position": 1.0,
+          "theme_freshness": 1.0,
+          "volume_health": 1.0
+        },
+        "accuracy": 0.0
+      }
+    }
   },
-  "generated_at": "2026-08-06 09:16:10"
+  "generated_at": "2026-08-07 03:32:22"
 }

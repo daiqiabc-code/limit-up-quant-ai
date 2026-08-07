@@ -41,10 +41,11 @@ from app.data.provider import (  # noqa: E402
     get_limit_up_data,
     get_market_snapshot,
     get_collector_type,
+    get_previous_limit_up,
 )
 from app.data.calendar import get_latest_trade_date as _cal_date  # noqa: E402
 from app.ml.scoring import score_limit_up_batch, FIVE_DIM_WEIGHTS  # noqa: E402
-from app.ml.strategy_pool import get_pool, WEIGHT_KEYS  # noqa: E402
+from app.ml.strategy_pool import get_pool, WEIGHT_KEYS, get_active_gene  # noqa: E402
 from app.ml.world_model import (  # noqa: E402
     get_world,
     get_world_env,
@@ -53,7 +54,13 @@ from app.ml.world_model import (  # noqa: E402
     _compute_env_signals,
     ENV_WEIGHT_ADJUSTMENTS,
 )
-from app.ml.health import record_verification, record_evolve, record_anomaly  # noqa: E402
+from app.ml.health import (  # noqa: E402
+    record_verification,
+    record_evolve,
+    record_anomaly,
+    get_model_health,
+    get_evolution_health,
+)
 
 # ---- 路径常量 ----
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -189,27 +196,43 @@ def verify_predictions(trade_date: str) -> dict[str, Any]:
     ranking_path = os.path.join(SNAP_DIR, "ranking.json")
     ranking_data = _read_json(ranking_path)
 
-    # 如果快照中的 trade_date 不匹配 prev_date，说明快照是今天的
-    # 我们仍然可以用它作为"待验证预测"，只要 trade_date <= trade_date
-    if ranking_data is None:
-        print(f"[verify] ranking.json 不存在，尝试从数据层获取...")
-        # 从 provider 获取 T-1 日数据
+    # 判断 ranking.json 是否可作为 T-1 预测：
+    # 其 trade_date 必须等于 prev_date（T-1）。若等于 trade_date（T）说明是今天的快照，
+    # 不能当 T-1 预测用（今天涨停股 ≠ 昨天涨停股），需现场用 prev_date 数据重新评分。
+    ranking_date = ranking_data.get("trade_date") if ranking_data else None
+    use_ranking = ranking_data is not None and ranking_date == prev_date
+
+    if use_ranking:
+        predictions = ranking_data.get("ranking", [])
+        environment = ranking_data.get("environment", "未知")
+        # ranking.json 已含 gene_params，提取以便样本记录（用于审计复现）
+        ranking_gene_params = ranking_data.get("gene_params")
+    else:
+        # ranking.json 不可用或日期不匹配（多半是今天的快照）→ 现场用 T-1 数据重新评分
+        if ranking_date:
+            print(f"[verify] ranking.json trade_date={ranking_date} ≠ T-1({prev_date})，现场用 {prev_date} 重新评分...")
+        else:
+            print(f"[verify] ranking.json 不存在，现场用 {prev_date} 评分...")
         records = get_limit_up_data(prev_date)
         if not records:
             print(f"[verify] {prev_date} 无涨停数据，跳过")
             return _empty_verify_result(prev_date, trade_date)
-        # 现场评分
+        # 计算 theme_stats（样本需携带，供策略池用各自基因重新打分）
+        recompute_theme_stats = {}
+        for r in records:
+            for c in r.get("concepts", []):
+                recompute_theme_stats[c] = recompute_theme_stats.get(c, 0) + 1
         snap = get_market_snapshot(prev_date)
         world_env = get_world_env(records, snap)
-        scored = score_limit_up_batch(records, None, apply_env_weights(
-            FIVE_DIM_WEIGHTS, world_env["environment"]
-        ))
+        # 用当前主策略权重 + 基因 + 环境微调 重新评分（与 make_snapshot 一致）
+        active_gene = get_active_gene()
+        final_weights = apply_env_weights(
+            get_pool().get_active_weights(), world_env["environment"]
+        )
+        scored = score_limit_up_batch(records, recompute_theme_stats, final_weights, active_gene)
         predictions = scored
         environment = world_env["environment"]
-    else:
-        predictions = ranking_data.get("ranking", [])
-        environment = ranking_data.get("environment", "未知")
-        prev_date = ranking_data.get("trade_date", prev_date)
+        ranking_gene_params = scored[0].get("gene_params") if scored else None
 
     if not predictions:
         print(f"[verify] {prev_date} 无预测数据，跳过")
@@ -217,40 +240,59 @@ def verify_predictions(trade_date: str) -> dict[str, Any]:
 
     print(f"[verify] 预测日: {prev_date}  实际日: {trade_date}  预测数: {len(predictions)}  环境: {environment}")
 
-    # 获取 T 日实际涨停池（作为标签来源）
+    # 获取 T 日实际表现（作为标签来源）
+    # 主源：get_previous_limit_up(T) —— 昨日涨停股今日表现（含涨跌幅/开盘涨幅，多目标 label）
+    # 次源：get_limit_up_data(T) —— T 日涨停池（用于判断连板）
+    # 关键：拉不到任何真实数据 → 跳过该日，绝不 Bernoulli 自证
+    prev_perf_map: dict[str, dict] = {}  # code -> {today_pct_chg, today_open_pct}
     actual_limit_ups: set[str] = set()
-    actual_records: list[dict] = []
+    label_source = "none"
 
-    # 方法1：从 provider 获取 T 日涨停数据
+    # 方法1：昨日涨停今日表现（最准确的多目标 label 源）
+    try:
+        prev_results = get_previous_limit_up(trade_date)
+        if prev_results:
+            for r in prev_results:
+                code = r.get("code", "")
+                prev_perf_map[code] = {
+                    "today_pct_chg": float(r.get("today_pct_chg", 0)),
+                    "today_open_pct": float(r.get("today_open_pct", 0)),
+                }
+            label_source = "akshare_previous"
+            print(f"[verify] 昨日涨停今日表现: {len(prev_perf_map)} 只 (label 源: {label_source})")
+    except Exception as e:
+        print(f"[verify] 获取昨日涨停今日表现失败: {e}")
+
+    # 方法2：T 日涨停池（补充连板判断）
     try:
         actual_records = get_limit_up_data(trade_date)
         actual_limit_ups = {r.get("code", "") for r in actual_records}
-        print(f"[verify] T日涨停池: {len(actual_limit_ups)} 只")
+        if actual_limit_ups:
+            print(f"[verify] T日涨停池: {len(actual_limit_ups)} 只")
+            if label_source == "none":
+                label_source = "akshare_ztpool"
     except Exception as e:
         print(f"[verify] 获取 T日涨停池失败: {e}")
 
-    # 方法2：如果 T 日数据为空，尝试从昨日涨停今日表现获取
-    if not actual_limit_ups:
-        try:
-            from app.data.akshare_adapter import fetch_previous_limit_up
-            prev_results = fetch_previous_limit_up(trade_date)
-            for r in prev_results:
-                if r.get("today_pct_chg", 0) > 0:
-                    actual_limit_ups.add(r.get("code", ""))
-            print(f"[verify] 从昨日涨停今日表现补充: {len(actual_limit_ups)} 只上涨")
-        except Exception as e:
-            print(f"[verify] 昨日涨停表现也不可用: {e}")
-
-    # 方法3：模拟器兜底 —— 如果都拿不到，用概率模型自验证
-    if not actual_limit_ups:
-        print(f"[verify] T日实际数据不可用，使用模拟标签（基于评分概率的伯努利采样）")
-        import random
-        random.seed(42)  # 确定性，幂等
+    # 关键：无任何真实数据 → 跳过该日，绝不 Bernoulli 自证（旧逻辑的自证 bug 在此根除）
+    if not prev_perf_map and not actual_limit_ups:
+        print(f"[verify] ⚠ {trade_date} 无任何真实表现数据，跳过验证（绝不自证）")
+        result = _empty_verify_result(prev_date, trade_date)
+        result["label_source"] = "none"
+        result["skip_reason"] = "no_real_data"
+        return result
 
     # 构造训练样本 + 计算命中率
     new_samples: list[dict] = []
     hit_count = 0
     verified_count = 0
+
+    # 从 predictions 构建 theme_stats（供策略池用各自基因重新打分 _score_theme_freshness）
+    # 当 use_ranking=True 时无原始 records，从 predictions 的 concepts 统计
+    sample_theme_stats: dict[str, int] = {}
+    for pred in predictions:
+        for c in pred.get("concepts", []):
+            sample_theme_stats[c] = sample_theme_stats.get(c, 0) + 1
 
     for pred in predictions:
         code = pred.get("code", "")
@@ -258,28 +300,69 @@ def verify_predictions(trade_date: str) -> dict[str, Any]:
         total_score = pred.get("total_score", 50.0)
         predicted_prob = _score_to_prob(total_score)
 
-        # 判断 T 日实际是否继续涨/涨停
-        if actual_limit_ups:
-            # 有真实数据：出现在涨停池 = True
-            label = code in actual_limit_ups
-        else:
-            # 无真实数据：用概率做伯努利采样（确定性 seed 保证幂等）
-            label = random.random() < predicted_prob * 0.6  # 衰减因子
+        # 多目标 label
+        perf = prev_perf_map.get(code, {})
+        today_pct = perf.get("today_pct_chg")  # 可能为 None
+        today_open_pct = perf.get("today_open_pct")
+
+        # is_limit_up_next: 次日继续涨停/连板（出现在 T 日涨停池 或 涨幅≥9.5）
+        is_limit_up_next = (code in actual_limit_ups) or (
+            today_pct is not None and today_pct >= 9.5
+        )
+        # is_up_next: 次日上涨
+        is_up_next = today_pct is not None and today_pct > 0
+        # next_pct: 次日涨跌幅（回归用）
+        next_pct = round(today_pct, 2) if today_pct is not None else None
+        # is_open_up: 次日红盘开盘（接力强度信号）
+        is_open_up = today_open_pct is not None and today_open_pct > 0
+
+        # 该票既无 prev_perf 也不在涨停池 → 无法验证，跳过
+        if today_pct is None and code not in actual_limit_ups:
+            continue
+
+        # 顶层 label 用 is_up_next（样本更均衡；涨停率~20%会导致 brier 失真）
+        label = is_up_next
 
         verified_count += 1
         if label:
             hit_count += 1
 
+        # 保存原始 rec 字段（供策略池用各自基因重新打分）
+        # 包含 _score_board_strength/_score_seal_quality/_score_theme_freshness/_score_volume_health 所需的全部字段
+        rec = {
+            "code": code,
+            "name": pred.get("name", ""),
+            "boards": int(pred.get("boards", 1)),
+            "seal_amount": float(pred.get("seal_amount", 0)),
+            "float_mv": float(pred.get("float_mv", 50)),
+            "seal_time": str(pred.get("seal_time", "10:00")),
+            "break_times": int(pred.get("break_times", 0)),
+            "concepts": pred.get("concepts", []),
+            "turnover": float(pred.get("turnover", 5)),
+            "amount": float(pred.get("amount", 0)),
+            "limit_type": str(pred.get("limit_type", "换手板")),
+            "industry": pred.get("industry", ""),
+        }
+
         new_samples.append({
             "date": prev_date,
             "code": code,
             "name": pred.get("name", ""),
+            "rec": rec,  # 原始字段，供策略池用各自基因重新打分
+            "theme_stats": sample_theme_stats,  # 共享的题材统计
             "sub_scores": sub_scores,
             "total_score": total_score,
             "predicted_prob": predicted_prob,
+            "gene_params": ranking_gene_params,  # 评分时使用的基因（审计用）
             "abs_grade": pred.get("abs_grade", ""),
             "rel_grade": pred.get("rel_grade", ""),
-            "label": label,
+            "label": label,  # 顶层 bool（= is_up_next），向后兼容现有 strategy_pool/health 逻辑
+            "labels": {  # 多目标，供阶段3 多目标 fitness 使用
+                "is_limit_up_next": is_limit_up_next,
+                "is_up_next": is_up_next,
+                "next_pct": next_pct,
+                "is_open_up": is_open_up,
+            },
             "environment": environment,
         })
 
@@ -287,6 +370,7 @@ def verify_predictions(trade_date: str) -> dict[str, Any]:
     brier = _compute_brier(new_samples)
 
     print(f"[verify] 验证完成: {verified_count} 只, 命中 {hit_count}, 准确率 {accuracy:.1%}, Brier {brier:.4f}")
+    print(f"[verify] label 源: {label_source}")
 
     return {
         "verified_date": prev_date,
@@ -298,6 +382,7 @@ def verify_predictions(trade_date: str) -> dict[str, Any]:
         "brier": brier,
         "new_samples": new_samples,
         "environment": environment,
+        "label_source": label_source,
     }
 
 
@@ -312,6 +397,7 @@ def _empty_verify_result(prev_date: str, actual_date: str) -> dict[str, Any]:
         "brier": 0.0,
         "new_samples": [],
         "environment": "未知",
+        "label_source": "none",
     }
 
 
@@ -338,9 +424,10 @@ def record_verification_result(verify_result: dict) -> dict:
         "accuracy": verify_result["accuracy"],
         "brier": verify_result["brier"],
         "environment": verify_result["environment"],
+        "label_source": verify_result.get("label_source", "none"),
         "event": "prediction_verification",
         "level": "info" if verify_result["accuracy"] >= 0.3 else "warning",
-        "summary": f"{verified_date} 预测验证: {verify_result['verified']}只, 命中{verify_result['hit_count']}, 准确率{verify_result['accuracy']:.1%}",
+        "summary": f"{verified_date} 预测验证: {verify_result['verified']}只, 命中{verify_result['hit_count']}, 准确率{verify_result['accuracy']:.1%} (源:{verify_result.get('label_source','none')})",
     }
 
     # 移除同日期旧记录，追加新记录
@@ -390,16 +477,17 @@ def retrain_strategy_pool(all_samples: list[dict], verify_result: dict) -> dict[
         record_anomaly("pool_degradation", f"Gen{result['generation']} fitness 下降 {abs(result['improvement']):.3f}")
         print(f"  ⚠ fitness 下降: {result['improvement']:.3f}")
 
-    # 记录进化
-    record_evolve(result["best_version"], len(all_samples))
+    # 记录进化（传入策略池进化摘要，含多目标指标 + 基因）
+    record_evolve(result["best_version"], len(all_samples), evolution_summary=result)
 
     return result
 
 
 def update_world_model(verify_result: dict) -> dict[str, Any]:
-    """更新世界模型：记录本次环境下的命中率，若低则微调权重。
+    """更新世界模型：记录本次环境下的命中率，自适应调整权重微调系数。
 
-    思路：某环境连续命中率低 → 该环境的权重微调系数需调整。
+    思路：某环境准确率低 → 逆转该环境的权重偏好（放大的降、抑制的升）；
+          准确率高 → 微幅强化当前方向。调整持久化到 world_model.json。
     """
     wm = get_world()
     environment = verify_result.get("environment", "正常偏强")
@@ -409,35 +497,29 @@ def update_world_model(verify_result: dict) -> dict[str, Any]:
 
     # 记录本次验证
     wm.record(environment, accuracy, brier, sample_count)
-    wm.save()
 
-    # 检查各环境命中率，若某环境连续低命中率则微调
+    # 检查各环境命中率
     env_accuracy = wm.accuracy_in(environment)
-    print(f"[world] 环境 [{environment}] 历史准确率: {env_accuracy}")
+    print(f"[world] 环境 [{environment}] 历史准确率: {env_accuracy} (本次 {accuracy:.1%})")
 
+    # 自适应调权（用历史累计准确率，更稳健）
     adjustments: dict[str, Any] = {}
+    if env_accuracy is not None:
+        adapt_result = wm.adapt_weights(environment, env_accuracy, sample_count)
+        if adapt_result.get("changed"):
+            adjustments[environment] = {
+                "old": adapt_result["old"],
+                "new": adapt_result["new"],
+                "accuracy": adapt_result["accuracy"],
+            }
+            print(f"[world] ✓ 环境 [{environment}] 自适应调权:")
+            for k in adapt_result["old"]:
+                old_v = adapt_result["old"][k]
+                new_v = adapt_result["new"][k]
+                if old_v != new_v:
+                    print(f"    {k}: {old_v} → {new_v}")
 
-    if env_accuracy is not None and env_accuracy < 0.35 and sample_count >= 10:
-        print(f"[world] ⚠ 环境 [{environment}] 命中率偏低 ({env_accuracy:.1%})，尝试微调权重...")
-
-        # 获取当前调整系数
-        current_adj = ENV_WEIGHT_ADJUSTMENTS.get(environment, {})
-        if current_adj:
-            # 策略：低命中率环境下，降低高权重维度的系数、提高低权重维度
-            # 这是一个简单的启发式调整
-            new_adj = {}
-            for k, v in current_adj.items():
-                if v > 1.0:
-                    new_adj[k] = round(max(0.8, v - 0.05), 2)  # 降低高权重
-                elif v < 1.0:
-                    new_adj[k] = round(min(1.2, v + 0.05), 2)  # 提高低权重
-                else:
-                    new_adj[k] = v
-            ENV_WEIGHT_ADJUSTMENTS[environment] = new_adj
-            adjustments[environment] = {"old": current_adj, "new": new_adj}
-            print(f"[world] 权重微调: {current_adj} → {new_adj}")
-
-    # 保存世界模型状态
+    # 保存世界模型状态（含 adaptive_adjustments）
     wm.save()
 
     return {
@@ -512,14 +594,19 @@ def generate_learning_stats(
         "strategy_pool": {
             "generation": pool_summary.get("generation", 0),
             "active_style": pool_summary.get("active_style", ""),
+            "active_gene": pool_summary.get("active_gene", {}),
             "pool_size": len(pool_summary.get("pool", [])),
             "strategies": [
                 {
                     "style": s["style"],
                     "fitness": s["fitness"],
                     "accuracy": s["accuracy"],
+                    "acc_limit": s.get("acc_limit", 0.0),
+                    "acc_open": s.get("acc_open", 0.0),
+                    "rank_corr": s.get("rank_corr", 0.0),
                     "brier": s["brier"],
                     "samples_tested": s.get("samples_tested", 0),
+                    "gene_params": s.get("gene_params", {}),
                 }
                 for s in pool_summary.get("pool", [])
             ],
@@ -535,6 +622,17 @@ def generate_learning_stats(
     stats_path = os.path.join(SNAP_DIR, "learning_stats.json")
     _write_json(stats_path, stats)
     print(f"[output] learning_stats.json 已生成（{stats_path}）")
+
+    # 进化已改变策略池/世界模型/health 状态，刷新健康快照，使线上前端面板
+    # （策略池表格、最近一代进化、进化趋势）反映最新一代的多目标指标 + 基因。
+    # CI 中 make_snapshot 先于 auto_evolve 运行，若不在此刷新，health_* 会滞后一代。
+    try:
+        _write_json(os.path.join(SNAP_DIR, "health_pool.json"), pool.summary())
+        _write_json(os.path.join(SNAP_DIR, "health_model.json"), get_model_health())
+        _write_json(os.path.join(SNAP_DIR, "health_evolution.json"), get_evolution_health())
+        print(f"[output] health_pool/health_model/health_evolution.json 已刷新（反映最新一代进化）")
+    except Exception as e:
+        print(f"[output] ⚠ 健康快照刷新失败（非致命）: {e}")
 
     return stats
 

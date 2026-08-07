@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Zap, Clock, RefreshCw, Activity, ListChecks } from 'lucide-react';
+import { Zap, Clock, RefreshCw, Activity, ListChecks, TrendingUp } from 'lucide-react';
 import {
   api,
   type EvolutionHealthSnapshot,
@@ -118,6 +118,85 @@ export default function LearningSystem() {
 
       {/* 中部：模型健康卡片 */}
       <ModelHealthCard />
+
+      {/* 最近一代进化 · 多目标指标 */}
+      {evolution?.last_evolution && (
+        <div className="panel">
+          <div className="panel-header">
+            <div className="flex items-center gap-2">
+              <Activity size={16} className="text-terminal-accent" />
+              <span className="text-sm font-medium">
+                最近一代进化 · Gen{evolution.last_evolution.generation}
+              </span>
+            </div>
+            <span className="text-xs text-terminal-dim">
+              {evolution.last_evolution.timestamp}
+            </span>
+          </div>
+          <div className="panel-body grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+            <Kpi label="适应度" value={evolution.last_evolution.best_fitness.toFixed(3)} accent />
+            <Kpi label="上涨准确率" value={`${(evolution.last_evolution.best_accuracy * 100).toFixed(1)}%`} />
+            <Kpi label="涨停准确率" value={`${(evolution.last_evolution.acc_limit * 100).toFixed(1)}%`} />
+            <Kpi label="开盘准确率" value={`${(evolution.last_evolution.acc_open * 100).toFixed(1)}%`} />
+            <Kpi label="秩相关" value={evolution.last_evolution.rank_corr.toFixed(2)} />
+            <Kpi
+              label="本代改进"
+              value={`${evolution.last_evolution.improvement >= 0 ? '+' : ''}${evolution.last_evolution.improvement.toFixed(3)}`}
+              accent={evolution.last_evolution.improvement > 0}
+            />
+          </div>
+          <div className="px-4 pb-3 text-xs text-terminal-dim">
+            主策略：<span className="text-terminal-accent">{evolution.last_evolution.best_style}</span>
+            <span className="ml-2 font-mono">{evolution.last_evolution.best_version}</span>
+          </div>
+        </div>
+      )}
+
+      {/* 进化趋势（最近若干代） */}
+      {evolution?.evolution_trend && evolution.evolution_trend.length > 0 && (
+        <div className="panel">
+          <div className="panel-header">
+            <div className="flex items-center gap-2">
+              <TrendingUp size={16} className="text-terminal-accent" />
+              <span className="text-sm font-medium">进化趋势 · 最近 {evolution.evolution_trend.length} 代</span>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="data-table w-full">
+              <thead>
+                <tr>
+                  <th>时间</th>
+                  <th>代</th>
+                  <th>风格</th>
+                  <th className="text-right">适应度</th>
+                  <th className="text-right">上涨率</th>
+                  <th className="text-right">涨停率</th>
+                  <th className="text-right">开盘率</th>
+                  <th className="text-right">秩相关</th>
+                  <th className="text-right">改进</th>
+                </tr>
+              </thead>
+              <tbody>
+                {evolution.evolution_trend.map((e, i) => (
+                  <tr key={i}>
+                    <td className="text-xs text-terminal-dim whitespace-nowrap">{e.timestamp}</td>
+                    <td className="font-mono text-xs">Gen{e.generation}</td>
+                    <td className="text-xs whitespace-nowrap">{e.best_style}</td>
+                    <td className="text-right font-mono text-xs text-terminal-accent">{e.best_fitness.toFixed(3)}</td>
+                    <td className="text-right font-mono text-xs">{(e.best_accuracy * 100).toFixed(1)}%</td>
+                    <td className="text-right font-mono text-xs">{(e.acc_limit * 100).toFixed(1)}%</td>
+                    <td className="text-right font-mono text-xs">{(e.acc_open * 100).toFixed(1)}%</td>
+                    <td className="text-right font-mono text-xs">{e.rank_corr.toFixed(2)}</td>
+                    <td className={`text-right font-mono text-xs ${e.improvement > 0 ? 'text-green-400' : e.improvement < 0 ? 'text-red-400' : 'text-terminal-dim'}`}>
+                      {e.improvement >= 0 ? '+' : ''}{e.improvement.toFixed(3)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* 底部：学习统计 + 进化日志 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

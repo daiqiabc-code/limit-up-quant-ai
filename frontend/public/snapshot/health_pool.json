@@ -1,1 +1,174 @@
-{"generation":0,"total_evolves":0,"active_id":"gen0-pcmm","active_style":"连板偏好型","pool":[{"version":"gen0-pcmm","style":"连板偏好型","style_desc":"偏好高连板个股，认为连板动能是接力的核心信号","fitness":0.0,"accuracy":0.0,"brier":1.0,"generation":0,"samples_tested":0,"weights":{"board_strength":0.4,"seal_quality":0.15,"sector_position":0.15,"theme_freshness":0.15,"volume_health":0.15}},{"version":"gen0-cmat","style":"封单偏好型","style_desc":"看重封单质量和封板坚决程度，封单强=主力意图明确","fitness":0.0,"accuracy":0.0,"brier":1.0,"generation":0,"samples_tested":0,"weights":{"board_strength":0.15,"seal_quality":0.4,"sector_position":0.15,"theme_freshness":0.15,"volume_health":0.15}},{"version":"gen0-nxdb","style":"板块龙头型","style_desc":"侧重板块地位，认为龙头股接力安全性最高","fitness":0.0,"accuracy":0.0,"brier":1.0,"generation":0,"samples_tested":0,"weights":{"board_strength":0.15,"seal_quality":0.15,"sector_position":0.4,"theme_freshness":0.15,"volume_health":0.15}},{"version":"gen0-bw2o","style":"题材驱动型","style_desc":"以题材新鲜度为主，认为主线热点是涨停接力的第一驱动力","fitness":0.0,"accuracy":0.0,"brier":1.0,"generation":0,"samples_tested":0,"weights":{"board_strength":0.15,"seal_quality":0.15,"sector_position":0.15,"theme_freshness":0.4,"volume_health":0.15}},{"version":"gen0-hdx3","style":"均衡型","style_desc":"各维度均衡配置，不偏重单一信号（接近经验默认值）","fitness":0.0,"accuracy":0.0,"brier":1.0,"generation":0,"samples_tested":0,"weights":{"board_strength":0.25,"seal_quality":0.2,"sector_position":0.2,"theme_freshness":0.2,"volume_health":0.15}}]}
+{
+  "generation": 3,
+  "total_evolves": 3,
+  "active_id": "gen0-zq64",
+  "active_style": "均衡型",
+  "active_gene": {
+    "board_peak": 5.0,
+    "board_decay_start": 6.0,
+    "seal_strong_ratio": 0.05,
+    "theme_golden_low": 2.0,
+    "theme_golden_high": 8.0,
+    "theme_overheat": 15.0,
+    "vol_healthy_low": 5.0,
+    "vol_healthy_high": 15.0,
+    "vol_too_high": 30.0
+  },
+  "pool": [
+    {
+      "version": "gen0-zq64",
+      "style": "均衡型",
+      "style_desc": "各维度均衡配置，不偏重单一信号（接近经验默认值）",
+      "fitness": 0.193,
+      "accuracy": 0.4089,
+      "brier": 0.3242,
+      "acc_limit": 0.6022,
+      "acc_open": 0.2937,
+      "rank_corr": 0.1414,
+      "generation": 0,
+      "samples_tested": 269,
+      "weights": {
+        "board_strength": 0.25,
+        "seal_quality": 0.2,
+        "sector_position": 0.2,
+        "theme_freshness": 0.2,
+        "volume_health": 0.15
+      },
+      "gene_params": {
+        "board_peak": 5.0,
+        "board_decay_start": 6.0,
+        "seal_strong_ratio": 0.05,
+        "theme_golden_low": 2.0,
+        "theme_golden_high": 8.0,
+        "theme_overheat": 15.0,
+        "vol_healthy_low": 5.0,
+        "vol_healthy_high": 15.0,
+        "vol_too_high": 30.0
+      }
+    },
+    {
+      "version": "gen2-7yzw",
+      "style": "均衡型×均衡型(变异)",
+      "style_desc": "交叉策略：均衡型 与 均衡型(变异) 的混合体",
+      "fitness": 0.1926,
+      "accuracy": 0.4089,
+      "brier": 0.3247,
+      "acc_limit": 0.6022,
+      "acc_open": 0.2937,
+      "rank_corr": 0.143,
+      "generation": 2,
+      "samples_tested": 269,
+      "weights": {
+        "board_strength": 0.254,
+        "seal_quality": 0.192,
+        "sector_position": 0.203,
+        "theme_freshness": 0.201,
+        "volume_health": 0.151
+      },
+      "gene_params": {
+        "board_peak": 5.0,
+        "board_decay_start": 6.0,
+        "seal_strong_ratio": 0.05,
+        "theme_golden_low": 2.0,
+        "theme_golden_high": 8.0,
+        "theme_overheat": 15.0,
+        "vol_healthy_low": 5.0,
+        "vol_healthy_high": 15.0,
+        "vol_too_high": 30.0
+      }
+    },
+    {
+      "version": "gen3-s7p3",
+      "style": "均衡型×均衡型×均衡型(变异)",
+      "style_desc": "交叉策略：均衡型 与 均衡型×均衡型(变异) 的混合体",
+      "fitness": 0.1926,
+      "accuracy": 0.4089,
+      "brier": 0.3245,
+      "acc_limit": 0.6022,
+      "acc_open": 0.2937,
+      "rank_corr": 0.1411,
+      "generation": 3,
+      "samples_tested": 269,
+      "weights": {
+        "board_strength": 0.25,
+        "seal_quality": 0.2,
+        "sector_position": 0.2,
+        "theme_freshness": 0.2,
+        "volume_health": 0.15
+      },
+      "gene_params": {
+        "board_peak": 5.0,
+        "board_decay_start": 6.0,
+        "seal_strong_ratio": 0.05,
+        "theme_golden_low": 2.0,
+        "theme_golden_high": 8.0,
+        "theme_overheat": 15.0,
+        "vol_healthy_low": 5.0,
+        "vol_healthy_high": 15.0,
+        "vol_too_high": 30.0
+      }
+    },
+    {
+      "version": "gen3-6b94",
+      "style": "均衡型×均衡型(变异)(变异)",
+      "style_desc": "由 均衡型×均衡型(变异) 高斯变异产生",
+      "fitness": 0.1926,
+      "accuracy": 0.4089,
+      "brier": 0.3247,
+      "acc_limit": 0.6022,
+      "acc_open": 0.2937,
+      "rank_corr": 0.143,
+      "generation": 3,
+      "samples_tested": 269,
+      "weights": {
+        "board_strength": 0.254,
+        "seal_quality": 0.192,
+        "sector_position": 0.203,
+        "theme_freshness": 0.201,
+        "volume_health": 0.151
+      },
+      "gene_params": {
+        "board_peak": 5.0,
+        "board_decay_start": 6.0,
+        "seal_strong_ratio": 0.05,
+        "theme_golden_low": 2.0,
+        "theme_golden_high": 8.0,
+        "theme_overheat": 15.0,
+        "vol_healthy_low": 5.0,
+        "vol_healthy_high": 15.0,
+        "vol_too_high": 30.0
+      }
+    },
+    {
+      "version": "gen3-3ogx",
+      "style": "均衡型(变异)",
+      "style_desc": "由 均衡型 高斯变异产生",
+      "fitness": 0.1892,
+      "accuracy": 0.4052,
+      "brier": 0.3281,
+      "acc_limit": 0.6059,
+      "acc_open": 0.2974,
+      "rank_corr": 0.1392,
+      "generation": 3,
+      "samples_tested": 269,
+      "weights": {
+        "board_strength": 0.236,
+        "seal_quality": 0.204,
+        "sector_position": 0.204,
+        "theme_freshness": 0.204,
+        "volume_health": 0.153
+      },
+      "gene_params": {
+        "board_peak": 5.0,
+        "board_decay_start": 6.0,
+        "seal_strong_ratio": 0.05,
+        "theme_golden_low": 2.0,
+        "theme_golden_high": 8.0,
+        "theme_overheat": 15.0,
+        "vol_healthy_low": 4.924029465206262,
+        "vol_healthy_high": 15.0,
+        "vol_too_high": 30.0
+      }
+    }
+  ]
+}

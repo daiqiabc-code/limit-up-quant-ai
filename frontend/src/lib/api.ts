@@ -183,17 +183,34 @@ export interface DashboardSnapshot {
   data_time: string;
 }
 
+/** 基因参数（打分函数阈值，进化时变异） */
+export interface GeneParams {
+  board_peak: number;
+  board_decay_start: number;
+  seal_strong_ratio: number;
+  theme_golden_low: number;
+  theme_golden_high: number;
+  theme_overheat: number;
+  vol_healthy_low: number;
+  vol_healthy_high: number;
+  vol_too_high: number;
+}
+
 /** health_pool.json */
 export interface StrategyEntry {
   version: string;
   style: string;
   style_desc: string;
   fitness: number;
-  accuracy: number;
+  accuracy: number;          // is_up_next 次日上涨准确率
   brier: number;
+  acc_limit?: number;        // is_limit_up_next 次日继续涨停准确率
+  acc_open?: number;         // is_open_up 次日红盘开盘准确率
+  rank_corr?: number;        // 预测概率 vs next_pct 秩相关 [-1,1]
   generation: number;
   samples_tested: number;
   weights: Record<string, number>;
+  gene_params?: GeneParams;  // 策略携带的打分基因
 }
 
 export interface HealthPoolSnapshot {
@@ -201,6 +218,7 @@ export interface HealthPoolSnapshot {
   total_evolves: number;
   active_id: string;
   active_style: string;
+  active_gene?: GeneParams;   // 主策略基因参数
   pool: StrategyEntry[];
 }
 
@@ -289,13 +307,41 @@ export interface HealthModelSnapshot {
     generation: number;
     active_id: string;
     total_evolves: number;
-    pool: { version: string; fitness: number; accuracy: number; brier: number; generation: number; weights: Record<string, number> }[];
+    pool: { version: string; fitness: number; accuracy: number; brier: number; acc_limit?: number; acc_open?: number; rank_corr?: number; generation: number; weights: Record<string, number>; gene_params?: GeneParams }[];
   };
   world_model?: {
     current_env: string;
     total_observations: number;
     environments: Record<string, { accuracy: number | null; samples: number; last_seen: string }>;
   };
+}
+
+/** 最近一代进化记录（含多目标指标 + 基因） */
+export interface EvolutionRecord {
+  timestamp: string;
+  generation: number;
+  best_version: string;
+  best_style: string;
+  best_fitness: number;
+  best_accuracy: number;
+  acc_limit: number;
+  acc_open: number;
+  rank_corr: number;
+  best_brier: number;
+  improvement: number;
+}
+
+/** 进化系统实时策略池状态 */
+export interface EvolutionStrategyPool {
+  generation: number;
+  total_evolves: number;
+  active_style: string;
+  active_fitness: number;
+  active_accuracy: number;
+  active_acc_limit: number;
+  active_acc_open: number;
+  active_rank_corr: number;
+  active_brier: number;
 }
 
 /** health_evolution.json */
@@ -313,6 +359,9 @@ export interface EvolutionHealthSnapshot {
   training_samples: number;
   pending_samples: number;
   retrain_recommended: boolean;
+  strategy_pool?: EvolutionStrategyPool;
+  last_evolution?: EvolutionRecord;
+  evolution_trend?: EvolutionRecord[];
 }
 
 /** dates.json */

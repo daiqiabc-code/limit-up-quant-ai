@@ -140,8 +140,25 @@ def classify_environment(signals: dict[str, float]) -> str:
 
 
 def get_env_weight_adjustment(environment: str) -> dict[str, float]:
-    """获取指定环境下的权重微调系数。"""
+    """获取指定环境下的权重微调系数（优先用自适应值，回退到默认）。"""
+    # 优先用世界模型里持久化的自适应调整（若已加载）
+    adaptive = _get_adaptive_adjustments().get(environment)
+    if adaptive:
+        return adaptive
     return ENV_WEIGHT_ADJUSTMENTS.get(environment, ENV_WEIGHT_ADJUSTMENTS["正常偏强"])
+
+
+# 自适应调整缓存（由 WorldModel 加载/保存，全局共享）
+_adaptive_adjustments: dict[str, dict[str, float]] | None = None
+
+
+def _get_adaptive_adjustments() -> dict[str, dict[str, float]]:
+    """获取自适应调整缓存（懒加载自世界模型）。"""
+    global _adaptive_adjustments
+    if _adaptive_adjustments is None:
+        wm = get_world()
+        _adaptive_adjustments = wm.adaptive_adjustments
+    return _adaptive_adjustments
 
 
 def apply_env_weights(
@@ -150,6 +167,7 @@ def apply_env_weights(
     """根据市场环境微调基础权重并归一化。
 
     例如：恐慌下跌时降低连板权重、提高封单权重。
+    优先使用世界模型持久化的自适应调整，回退到默认 ENV_WEIGHT_ADJUSTMENTS。
     """
     adj = get_env_weight_adjustment(environment)
     adjusted = {k: base_weights.get(k, 0.2) * adj.get(k, 1.0) for k in base_weights}
@@ -180,6 +198,11 @@ class WorldModel:
         self.last_env: str = "正常偏强"
         self.last_signals: dict[str, float] = {}
         self.total_observations: int = 0
+        # 自适应权重微调：从默认 ENV_WEIGHT_ADJUSTMENTS 拷贝一份，进化时可调整并持久化
+        # 默认 ENV_WEIGHT_ADJUSTMENTS 保持只读（作为回退基准）
+        self.adaptive_adjustments: dict[str, dict[str, float]] = {
+            env: dict(adj) for env, adj in ENV_WEIGHT_ADJUSTMENTS.items()
+        }
 
     def record(self, environment: str, accuracy: float, brier: float, sample_count: int) -> None:
         """记录一次验证结果。"""
@@ -190,6 +213,60 @@ class WorldModel:
         stats["last_seen"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self.last_env = environment
         self.total_observations += 1
+
+    def adapt_weights(self, environment: str, accuracy: float, sample_count: int) -> dict[str, Any]:
+        """根据某环境下的准确率自适应调整该环境的权重微调系数。
+
+        策略：
+          - 准确率低 (< 0.35) 且样本充足 (≥10)：
+            降低当前被放大的维度（adj>1 → 降），提高被抑制的维度（adj<1 → 升），
+            每次 ±0.05，clip 到 [0.7, 1.3]。
+          - 准确率高 (≥ 0.6) 且样本充足：微幅强化当前方向（±0.02），巩固有效配置。
+          - 样本不足：不调整。
+
+        返回调整摘要 {environment, old, new, changed}。
+        """
+        if sample_count < 10:
+            return {"environment": environment, "changed": False, "reason": "samples_insufficient"}
+
+        current = self.adaptive_adjustments.get(environment, dict(ENV_WEIGHT_ADJUSTMENTS.get(environment, {})))
+        old = dict(current)
+
+        if accuracy < 0.35:
+            # 低准确率：逆转当前偏好（放大的降，抑制的升）
+            step = 0.05
+            for k, v in current.items():
+                if v > 1.0:
+                    current[k] = round(max(0.70, v - step), 2)
+                elif v < 1.0:
+                    current[k] = round(min(1.30, v + step), 2)
+            changed = any(old[k] != current[k] for k in current)
+        elif accuracy >= 0.60:
+            # 高准确率：微幅强化当前方向
+            step = 0.02
+            for k, v in current.items():
+                if v > 1.0:
+                    current[k] = round(min(1.30, v + step), 2)
+                elif v < 1.0:
+                    current[k] = round(max(0.70, v - step), 2)
+            changed = any(old[k] != current[k] for k in current)
+        else:
+            changed = False
+
+        if changed:
+            self.adaptive_adjustments[environment] = current
+            # 刷新全局缓存
+            global _adaptive_adjustments
+            _adaptive_adjustments = self.adaptive_adjustments
+
+        return {
+            "environment": environment,
+            "changed": changed,
+            "old": old,
+            "new": dict(current),
+            "accuracy": round(accuracy, 4),
+            "samples": sample_count,
+        }
 
     def accuracy_in(self, environment: str) -> float | None:
         """查询某环境下的历史准确率。"""
@@ -264,8 +341,12 @@ class WorldModel:
                 "env_stats": {k: dict(v) for k, v in self.env_stats.items()},
                 "last_env": self.last_env,
                 "total_observations": self.total_observations,
+                "adaptive_adjustments": self.adaptive_adjustments,
                 "updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             }, f, ensure_ascii=False, indent=2)
+        # 同步刷新全局缓存
+        global _adaptive_adjustments
+        _adaptive_adjustments = self.adaptive_adjustments
 
     def load(self) -> bool:
         if not os.path.exists(WM_PATH):
@@ -276,6 +357,12 @@ class WorldModel:
             self.env_stats[env] = dict(stats)
         self.last_env = data.get("last_env", "正常偏强")
         self.total_observations = data.get("total_observations", 0)
+        # 加载持久化的自适应调整（若存在），否则保留默认拷贝
+        saved_adj = data.get("adaptive_adjustments")
+        if saved_adj and isinstance(saved_adj, dict):
+            self.adaptive_adjustments = saved_adj
+        global _adaptive_adjustments
+        _adaptive_adjustments = self.adaptive_adjustments
         return True
 
     def summary(self) -> dict[str, Any]:

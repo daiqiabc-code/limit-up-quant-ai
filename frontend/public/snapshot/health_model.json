@@ -1,1 +1,32 @@
-{"health_score": 73, "health_status": "良好", "model_version": "evolved-20260805-1606", "model_trained_at": "2026-08-05 16:06:13", "total_verifications": 5, "total_predictions": 276, "training_samples": 276, "pending_samples": 0, "evolve_cycles": 2, "last_evolve": "2026-08-05 16:06:13", "recent_accuracy": 0.0, "recent_accuracy_3avg": 0.4082, "avg_brier": 0.0958, "prediction_uncertainty": 0.248, "active_anomalies": 0, "anomalies": [], "accuracy_trend": [{"timestamp": "2026-08-05 15:33:47", "accuracy": 0.0}, {"timestamp": "2026-08-05 15:35:05", "accuracy": 0.0}, {"timestamp": "2026-08-05 15:36:41", "accuracy": 0.6159}, {"timestamp": "2026-08-05 15:38:05", "accuracy": 0.6087}, {"timestamp": "2026-08-05 16:06:09", "accuracy": 0.0}]}
+{
+  "health_score": 61,
+  "health_status": "良好",
+  "model_version": "v0",
+  "model_trained_at": "",
+  "total_verifications": 3,
+  "total_predictions": 269,
+  "training_samples": 269,
+  "pending_samples": 0,
+  "evolve_cycles": 3,
+  "last_evolve": "2026-08-07 03:32:22",
+  "recent_accuracy": 0.0,
+  "recent_accuracy_3avg": 0.2557,
+  "avg_brier": 0.3974,
+  "prediction_uncertainty": 0.504,
+  "active_anomalies": 0,
+  "anomalies": [],
+  "accuracy_trend": [
+    {
+      "timestamp": "2026-08-07 03:03:09",
+      "accuracy": 0.767
+    },
+    {
+      "timestamp": "2026-08-07 03:30:14",
+      "accuracy": 0.0
+    },
+    {
+      "timestamp": "2026-08-07 03:32:22",
+      "accuracy": 0.0
+    }
+  ]
+}

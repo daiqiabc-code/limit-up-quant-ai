@@ -297,6 +297,24 @@ export default function StockDetail({ code }: { code: string }) {
                   <div className="text-xs text-terminal-dim">样本数</div>
                   <div className="font-mono">{strategy.samples_tested}</div>
                 </div>
+                {strategy.acc_limit != null && (
+                  <div title="is_limit_up_next 次日继续涨停准确率">
+                    <div className="text-xs text-terminal-dim">涨停准确率</div>
+                    <div className="font-mono text-amber-400">{(strategy.acc_limit * 100).toFixed(1)}%</div>
+                  </div>
+                )}
+                {strategy.acc_open != null && (
+                  <div title="is_open_up 次日红盘开盘准确率">
+                    <div className="text-xs text-terminal-dim">开盘准确率</div>
+                    <div className="font-mono text-amber-400">{(strategy.acc_open * 100).toFixed(1)}%</div>
+                  </div>
+                )}
+                {strategy.rank_corr != null && (
+                  <div title="预测概率 vs next_pct 秩相关">
+                    <div className="text-xs text-terminal-dim">秩相关</div>
+                    <div className="font-mono">{strategy.rank_corr.toFixed(2)}</div>
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -309,6 +327,19 @@ export default function StockDetail({ code }: { code: string }) {
                     <div className="text-xs text-terminal-dim">{DIM_CN[k] || k}</div>
                     <div className="font-mono text-sm text-terminal-text">{v.toFixed(2)}</div>
                   </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {strategy?.gene_params && (
+            <div className="border-t border-terminal-border pt-3">
+              <div className="text-xs text-terminal-dim mb-2">基因参数（打分阈值，进化时变异）</div>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] font-mono">
+                {Object.entries(strategy.gene_params).map(([k, v]) => (
+                  <span key={k}>
+                    <span className="text-terminal-dim">{k}</span>
+                    <span className="text-terminal-accent ml-1">{typeof v === 'number' ? v.toFixed(3) : v}</span>
+                  </span>
                 ))}
               </div>
             </div>
