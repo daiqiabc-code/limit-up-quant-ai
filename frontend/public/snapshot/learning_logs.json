@@ -29,6 +29,21 @@
       "event": "prediction_verification",
       "level": "warning",
       "summary": "20260806 预测验证: 79只, 命中22, 准确率27.9% (源:akshare_previous)"
+    },
+    {
+      "date": "20260810",
+      "actual_date": "20260811",
+      "timestamp": "2026-08-12 03:17:12",
+      "total": 89,
+      "verified": 89,
+      "hit_count": 0,
+      "accuracy": 0.0,
+      "brier": 0.3161,
+      "environment": "趋势牛市",
+      "label_source": "akshare_ztpool",
+      "event": "prediction_verification",
+      "level": "warning",
+      "summary": "20260810 预测验证: 89只, 命中0, 准确率0.0% (源:akshare_ztpool)"
     }
   ]
 }

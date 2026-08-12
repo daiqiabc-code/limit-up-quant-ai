@@ -1,31 +1,23 @@
 {
-  "health_score": 61,
-  "health_status": "良好",
+  "health_score": 35,
+  "health_status": "差",
   "model_version": "v0",
   "model_trained_at": "",
-  "total_verifications": 3,
-  "total_predictions": 269,
-  "training_samples": 269,
+  "total_verifications": 1,
+  "total_predictions": 89,
+  "training_samples": 89,
   "pending_samples": 0,
-  "evolve_cycles": 3,
-  "last_evolve": "2026-08-07 03:32:22",
+  "evolve_cycles": 1,
+  "last_evolve": "2026-08-12 03:17:12",
   "recent_accuracy": 0.0,
-  "recent_accuracy_3avg": 0.2557,
-  "avg_brier": 0.3974,
-  "prediction_uncertainty": 0.504,
+  "recent_accuracy_3avg": 0.0,
+  "avg_brier": 0.3161,
+  "prediction_uncertainty": 0.45,
   "active_anomalies": 0,
   "anomalies": [],
   "accuracy_trend": [
     {
-      "timestamp": "2026-08-07 03:03:09",
-      "accuracy": 0.767
-    },
-    {
-      "timestamp": "2026-08-07 03:30:14",
-      "accuracy": 0.0
-    },
-    {
-      "timestamp": "2026-08-07 03:32:22",
+      "timestamp": "2026-08-12 03:17:12",
       "accuracy": 0.0
     }
   ]
