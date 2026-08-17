@@ -1,0 +1,44 @@
+name: Refresh Prices (Real-time)
+
+on:
+  schedule:
+    # 每 5 分钟刷新一次（1 分钟会触发 GitHub 限流，5 分钟是可接受的"准实时"）
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-prices
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Run refresh script
+        run: node scripts/refresh-prices.mjs
+
+      - name: Commit & push prices.json
+        run: |
+          git config user.name "pulse-bot"
+          git config user.email "pulse-bot@users.noreply.github.com"
+          git add public/prices.json
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "chore(data): refresh prices (${GITHUB_RUN_NUMBER})"
+            git push origin main
+          fi

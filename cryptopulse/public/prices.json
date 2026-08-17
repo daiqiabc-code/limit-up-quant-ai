@@ -1,0 +1,86 @@
+{
+  "ts": 1786945339,
+  "updatedAt": "2026-08-17T05:42:19.265Z",
+  "prices": {
+    "BTC": {
+      "price": 63414.32,
+      "change": 0.5721006527939222,
+      "source": "HTX"
+    },
+    "ETH": {
+      "price": 1897.62,
+      "change": 0.8921545692350213,
+      "source": "HTX"
+    },
+    "SOL": {
+      "price": 75.4831,
+      "change": 0.02849131213754939,
+      "source": "HTX"
+    },
+    "XRP": {
+      "price": 1.00249,
+      "change": 0.22995630830144184,
+      "source": "HTX"
+    },
+    "HYPE": {
+      "price": 58.9625,
+      "change": 3.3458011413828324,
+      "source": "HTX"
+    },
+    "DOGE": {
+      "price": 0.070207,
+      "change": 0.7028414877289676,
+      "source": "HTX"
+    },
+    "LINK": {
+      "price": 9.4312,
+      "change": 0.5061969159286978,
+      "source": "HTX"
+    },
+    "AAVE": {
+      "price": 86.8116,
+      "change": 0.9437209302325564,
+      "source": "HTX"
+    },
+    "AVAX": {
+      "price": 6.3711,
+      "change": 0.5666750852380322,
+      "source": "HTX"
+    },
+    "SUI": {
+      "price": 0.6767,
+      "change": 0.31129558256744605,
+      "source": "HTX"
+    },
+    "TIA": {
+      "price": 0.3014,
+      "change": 0.5336891260840528,
+      "source": "HTX"
+    },
+    "ENA": {
+      "price": 0.08369,
+      "change": 0.035859431030363674,
+      "source": "HTX"
+    },
+    "PEPE": {
+      "price": 0.000002616699,
+      "change": 0.08575394431807652,
+      "source": "HTX"
+    },
+    "WIF": {
+      "price": 0.137,
+      "change": 0.5135730007336802,
+      "source": "HTX"
+    },
+    "BNB": {
+      "price": 605.6,
+      "change": -0.11,
+      "source": "Gate.io"
+    },
+    "ONDO": {
+      "price": 0.3366,
+      "change": 3.92,
+      "source": "Gate.io"
+    }
+  }
+}
