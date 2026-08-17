@@ -7,6 +7,10 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta
 from functools import lru_cache
+from zoneinfo import ZoneInfo
+
+# A股收盘判断始终基于北京时间（无论服务器时区是 UTC 还是其它）
+_CN_TZ = ZoneInfo("Asia/Shanghai")
 
 # 2025-2026 主要法定休市日（简化版，生产环境应对接交易所日历接口）
 HOLIDAYS: set[str] = {
@@ -81,8 +85,8 @@ def recent_trade_days(end: str, count: int) -> list[str]:
 
 
 def latest_trade_day(ref: date | str | None = None) -> str:
-    """最近一个已收盘交易日（15:00 后当日算收盘）。"""
-    now = datetime.now()
+    """最近一个已收盘交易日（北京时间 15:00 后当日算收盘）。"""
+    now = datetime.now(_CN_TZ)
     if ref is None:
         d = now.date()
         if not is_trade_day(d) or now.hour < 15:
@@ -123,11 +127,11 @@ def get_latest_trade_date() -> str:
     """
     cal = _load_akshare_calendar()
     if cal:
-        today_str = date.today().strftime("%Y%m%d")
-        now = datetime.now()
-        # 收盘前（< 15:00）取前一交易日
-        if now.hour < 15:
-            today_str = (date.today() - timedelta(days=1)).strftime("%Y%m%d")
+        now_cn = datetime.now(_CN_TZ)
+        today_str = now_cn.strftime("%Y%m%d")
+        # 北京时间收盘前（< 15:00）取前一交易日；收盘后取当日
+        if now_cn.hour < 15:
+            today_str = (now_cn - timedelta(days=1)).strftime("%Y%m%d")
         # 从日历中找 <= today 的最后一个
         past = [d for d in cal if d <= today_str]
         if past:
