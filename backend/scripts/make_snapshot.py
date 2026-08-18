@@ -261,6 +261,17 @@ def main() -> int:
     _write_json("health_evolution.json", get_evolution_health())
     print(f"  ✓ health_model.json + health_evolution.json (含多目标指标 + 进化趋势)")
 
+    # dashboard.json：总览看板快照
+    # 此前 make_snapshot 从不生成它，导致线上该文件停留在旧交易日（如 2026-08-05）
+    # 与 meta/limitup/ranking 不同步。现复用已计算的 snap + theme_stats_raw 补齐。
+    _write_json("dashboard.json", {
+        "snapshot": snap,
+        "hot_themes": theme_stats_raw[:6],
+        "collector": collector,
+        "data_time": trade_date,
+    })
+    print(f"  ✓ dashboard.json (trade_date={trade_date}, 涨停{snap.get('limit_up_count')}只)")
+
     # 6. 附加 + 元数据
     print(f"\n[6/6] 附加数据...")
     if settings.SOURCE_MODE in ("akshare", "auto"):
