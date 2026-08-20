@@ -59,10 +59,12 @@ jobs:
           python -m scripts.make_snapshot
 
       - name: Run auto-evolve (learning + health 进化痕迹)
-        # 用次日实际表现验证预测并驱动策略池进化；非致命，失败也不阻塞部署
+        # 用次日实际表现验证预测并驱动策略池进化；非致命，失败也不阻塞部署。
+        # 加 timeout 兜底：akshare 拉真实行情在 CI 下可能长时间无响应/hang，
+        # 若不加限制会把整个 job 拖到 GitHub 6 小时上限被强制取消，导致部署被跳过。
         run: |
           cd backend
-          python -m scripts.auto_evolve --force || echo "auto_evolve 非致命，继续部署"
+          timeout 600 python -m scripts.auto_evolve --force || echo "auto_evolve 超时或失败，非致命，继续部署"
 
       - name: Build frontend
         run: |
