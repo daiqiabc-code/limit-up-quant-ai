@@ -6,6 +6,7 @@
 import type { Asset, Candle, MarketRegime, Order, Position, Signal, TradingSnapshot } from "@/types";
 import type { ExchangeProvider, ProviderConfig } from "@/services/provider";
 import { MockExchangeProvider } from "@/services/mock/provider";
+import { reconcileLiveMarket } from "@/services/exchanges/liveSignals";
 
 export interface FetchedAsset {
   symbol: string;
@@ -123,6 +124,10 @@ export abstract class RestExchangeProvider implements ExchangeProvider {
       snap.dataSource = this.id === "okx" ? "LIVE_OKX" : "LIVE_BINANCE";
       snap.liveTradingEnabled = this.liveTrading && this.hasCredentials();
       this.degraded = "LIVE";
+      // 用真实 K 线重算信号（机会）、市场状态，并同步持仓现价
+      await reconcileLiveMarket(snap, symbols, (symbol, timeframe, limit) =>
+        this.fetchCandles(symbol, timeframe, limit),
+      );
     } catch {
       snap.dataSource = "FALLBACK";
       snap.liveTradingEnabled = false;
