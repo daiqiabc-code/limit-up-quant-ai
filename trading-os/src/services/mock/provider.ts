@@ -126,6 +126,8 @@ interface CoinEngine {
 export class MockExchangeProvider implements ExchangeProvider {
   readonly id = "mock";
   readonly displayName = "Mock Data Engine";
+  readonly supportsLive = false;
+  readonly degraded = "MOCK" as const;
   private engines: CoinEngine[] = [];
   private candlesCache = new Map<string, Candle[]>();
   private seed: number;
@@ -308,6 +310,8 @@ export class MockExchangeProvider implements ExchangeProvider {
     return {
       mode: "PAPER",
       exchange: "OKX",
+      dataSource: "MOCK",
+      liveTradingEnabled: false,
       updatedAt: Date.now(),
       assets,
       regime: this.regimeFor(symbols[0] ?? "BTCUSDT"),

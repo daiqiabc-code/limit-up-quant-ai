@@ -2,12 +2,26 @@
 
 import { create } from "zustand";
 import type { TradingSnapshot, Signal, Opportunity, Settings, Trade, JournalEntry } from "@/types";
-import { createDefaultProvider } from "@/services";
+import type { ExchangeProvider } from "@/services/provider";
+import { createProvider, type DataProviderId } from "@/services/exchanges";
 import { COINS } from "@/services/mock/universe";
 import { DEFAULT_SETTINGS, loadSettings, saveSettings } from "@/lib/settings";
 
 const SYMBOLS = COINS.map((c) => c.symbol);
 const REFRESH_MS = 4000;
+
+function buildProvider(s: Settings): ExchangeProvider {
+  return createProvider(s.dataProvider as DataProviderId, {
+    symbols: SYMBOLS,
+    seed: 20260824,
+    credentials: {
+      apiKey: s.apiKey,
+      apiSecret: s.apiSecret,
+      apiPassphrase: s.apiPassphrase,
+    },
+    liveTrading: s.liveTradingEnabled ?? false,
+  });
+}
 
 interface TradingState {
   // 数据
@@ -42,8 +56,10 @@ interface TradingState {
   addJournalEntry: (j: JournalEntry) => void;
 }
 
-const provider = createDefaultProvider();
-export const marketClient = provider; // 供图表等非响应式场景直接取 K 线
+let activeProvider: ExchangeProvider = buildProvider(DEFAULT_SETTINGS);
+export function getMarketClient(): ExchangeProvider {
+  return activeProvider;
+}
 
 export const useTradingStore = create<TradingState>((set, get) => ({
   snapshot: null,
@@ -62,6 +78,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   init: () => {
     if (typeof window === "undefined") return;
     const settings = loadSettings();
+    activeProvider = buildProvider(settings);
     set({ settings });
     try {
       const trades = JSON.parse(window.localStorage.getItem("pto.trades") ?? "[]") as Trade[];
@@ -79,7 +96,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
 
   refresh: async () => {
     try {
-      const snapshot = await provider.getSnapshot(SYMBOLS);
+      const snapshot = await activeProvider.getSnapshot(SYMBOLS);
       set({ snapshot, loading: false, error: null, lastUpdate: Date.now() });
     } catch (e) {
       set({ error: e instanceof Error ? e.message : "数据加载失败", loading: false });
@@ -89,9 +106,16 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   setSelectedSymbol: (s) => set({ selectedSymbol: s }),
   setTimeframe: (t) => set({ timeframe: t }),
   updateSettings: (patch) => {
-    const next = { ...get().settings, ...patch };
+    const prev = get().settings;
+    const next = { ...prev, ...patch };
     set({ settings: next });
     saveSettings(next);
+    // 数据源 / 凭证 / 实盘开关变化时重建 Provider 并立即刷新
+    const keys: (keyof Settings)[] = ["dataProvider", "apiKey", "apiSecret", "apiPassphrase", "liveTradingEnabled"];
+    if (keys.some((k) => next[k] !== prev[k])) {
+      activeProvider = buildProvider(next);
+      void get().refresh();
+    }
   },
   openOpportunity: (o) => set({ activeOpportunity: o }),
   openSignalDetail: (symbol) => set({ signalDetailSymbol: symbol }),

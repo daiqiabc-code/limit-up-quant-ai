@@ -17,6 +17,15 @@ export function Header() {
   const regime = snapshot?.regime;
   const wsOnline = snapshot != null; // mock 引擎在线视为连接
 
+  const ds = snapshot?.dataSource ?? "MOCK";
+  const dsBadge: Record<string, { label: string; tone: "bull" | "warn" | "neutral" | "info" }> = {
+    MOCK: { label: "模拟数据", tone: "neutral" },
+    LIVE_OKX: { label: "OKX 实时", tone: "bull" },
+    LIVE_BINANCE: { label: "Binance 实时", tone: "bull" },
+    FALLBACK: { label: "降级模拟", tone: "warn" },
+  };
+  const dsMeta = dsBadge[ds] ?? { label: "模拟数据", tone: "neutral" as const };
+
   return (
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-panel px-4">
       <div className="flex items-center gap-6">
@@ -53,7 +62,9 @@ export function Header() {
 
       <div className="flex items-center gap-4">
         <div className="hidden items-center gap-4 text-[11px] text-muted sm:flex">
-          <span>Exchange: <span className="text-text">OKX</span></span>
+          <Badge tone={dsMeta.tone} dot>{dsMeta.label}</Badge>
+          {snapshot?.liveTradingEnabled && <Badge tone="bear" dot>真实交易</Badge>}
+          <span>Exchange: <span className="text-text">{snapshot?.exchange ?? "OKX"}</span></span>
           <span>Account: <span className="text-bull">Connected</span></span>
         </div>
 

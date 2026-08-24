@@ -11,7 +11,7 @@ import {
   type LineData,
   type UTCTimestamp,
 } from "lightweight-charts";
-import { useTradingStore, marketClient } from "@/store/tradingStore";
+import { useTradingStore, getMarketClient } from "@/store/tradingStore";
 import { TIMEFRAMES } from "@/services/mock/universe";
 import { LoadingState, ErrorState } from "@/components/ui/State";
 import { sma } from "@/services/mock/rand";
@@ -25,6 +25,7 @@ export function BtcChart() {
 
   const symbol = useTradingStore((s) => s.selectedSymbol);
   const timeframe = useTradingStore((s) => s.timeframe);
+  const dataProvider = useTradingStore((s) => s.settings.dataProvider);
   const setTimeframe = useTradingStore((s) => s.setTimeframe);
   const [data, setData] = useState<{ ok: boolean; msg?: string }>({ ok: false });
 
@@ -84,7 +85,7 @@ export function BtcChart() {
     let cancelled = false;
     (async () => {
       try {
-        const candles = await marketClient.getCandles(symbol, timeframe, 300);
+        const candles = await getMarketClient().getCandles(symbol, timeframe, 300);
         if (cancelled || !candleSeries.current) return;
         const cs = candles.map<CandlestickData>((c) => ({
           time: c.time as UTCTimestamp,
@@ -129,7 +130,7 @@ export function BtcChart() {
     return () => {
       cancelled = true;
     };
-  }, [symbol, timeframe]);
+  }, [symbol, timeframe, dataProvider]);
 
   return (
     <div className="rounded-xl border border-border bg-panel">

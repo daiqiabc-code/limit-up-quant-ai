@@ -3,12 +3,36 @@
 import { useTradingStore } from "@/store/tradingStore";
 import { Card } from "@/components/ui/Card";
 import { CardHeader } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
 import { COINS } from "@/services/mock/universe";
 import { cn } from "@/lib/utils";
 
 export function SettingsPanel() {
   const settings = useTradingStore((s) => s.settings);
   const update = useTradingStore((s) => s.updateSettings);
+  const snapshot = useTradingStore((s) => s.snapshot);
+
+  const hasCreds = Boolean(settings.apiKey && settings.apiSecret);
+  const src = snapshot?.dataSource ?? "MOCK";
+  const srcMeta: Record<string, { label: string; tone: "bull" | "warn" | "neutral" }> = {
+    MOCK: { label: "模拟数据", tone: "neutral" },
+    LIVE_OKX: { label: "OKX 实时行情", tone: "bull" },
+    LIVE_BINANCE: { label: "Binance 实时行情", tone: "bull" },
+    FALLBACK: { label: "降级模拟（实时不可达）", tone: "warn" },
+  };
+  const cur = srcMeta[src];
+
+  function toggleLiveTrading() {
+    if (settings.liveTradingEnabled) {
+      update({ liveTradingEnabled: false });
+      return;
+    }
+    if (!hasCreds) return;
+    const ok = window.confirm(
+      "确认开启真实交易？将使用已配置的 API 凭证提交真实订单，可能造成实际资金损失。请再次确认。",
+    );
+    if (ok) update({ liveTradingEnabled: true });
+  }
 
   const num = (key: "riskPerTrade" | "maxPortfolioHeat" | "defaultLeverage" | "signalThreshold", label: string, min = 0, max = 100, step = 0.1) => (
     <div>
@@ -32,6 +56,81 @@ export function SettingsPanel() {
 
   return (
     <div className="space-y-4">
+      <Card>
+        <CardHeader
+          title="数据源与连接"
+          subtitle="切换实时行情来源；真实下单默认关闭"
+          right={<Badge tone={cur.tone} dot>{cur.label}</Badge>}
+        />
+        <div className="grid grid-cols-1 gap-4">
+          <div>
+            <label className="mb-1 block text-xs text-muted">Data Provider</label>
+            <select
+              value={settings.dataProvider}
+              onChange={(e) => update({ dataProvider: e.target.value as never, liveTradingEnabled: false })}
+              className="h-9 w-full rounded-md border border-border bg-surface px-2 text-xs text-text focus:border-info focus:outline-none"
+            >
+              <option value="MOCK">模拟数据（Mock）</option>
+              <option value="OKX">OKX 现货行情</option>
+              <option value="BINANCE">Binance 现货行情</option>
+            </select>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {(
+              [
+                ["apiKey", "API Key"],
+                ["apiSecret", "API Secret"],
+                ["apiPassphrase", "Passphrase（OKX）"],
+              ] as const
+            ).map(([k, label]) => (
+              <div key={k}>
+                <label className="mb-1 block text-xs text-muted">{label}</label>
+                <input
+                  type="password"
+                  autoComplete="off"
+                  value={settings[k] ?? ""}
+                  onChange={(e) => update({ [k]: e.target.value } as never)}
+                  placeholder="未配置"
+                  className="h-9 w-full rounded-md border border-border bg-surface px-2 text-xs text-text focus:border-info focus:outline-none"
+                />
+              </div>
+            ))}
+          </div>
+
+          <div className="flex items-center justify-between rounded-lg border border-border bg-surface/50 px-3 py-2.5">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-text">真实交易（允许提交真实订单）</span>
+                {snapshot?.liveTradingEnabled && <Badge tone="bear" dot>已开启</Badge>}
+              </div>
+              <p className="mt-0.5 text-[11px] text-muted">
+                {hasCreds
+                  ? "已填写凭证。开启前会再次确认，请谨慎操作。"
+                  : "需先配置 API Key 与 Secret 后方可开启。"}
+              </p>
+            </div>
+            <button
+              onClick={toggleLiveTrading}
+              disabled={!hasCreds && !settings.liveTradingEnabled}
+              className={cn(
+                "relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-40",
+                settings.liveTradingEnabled ? "bg-bear" : "bg-border",
+              )}
+              aria-checked={settings.liveTradingEnabled}
+              role="switch"
+            >
+              <span
+                className={cn(
+                  "absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all",
+                  settings.liveTradingEnabled ? "left-[22px]" : "left-0.5",
+                )}
+              />
+            </button>
+          </div>
+        </div>
+      </Card>
+
       <Card>
         <CardHeader title="风控参数" subtitle="Portfolio Heat 分级阈值可自定义" />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

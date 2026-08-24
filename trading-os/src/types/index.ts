@@ -312,9 +312,13 @@ export interface Opportunity extends Signal {
   priority: number;
 }
 
+export type DataSource = "MOCK" | "LIVE_OKX" | "LIVE_BINANCE" | "FALLBACK";
+
 export interface TradingSnapshot {
   mode: TradeMode;
   exchange: string;
+  dataSource: DataSource;
+  liveTradingEnabled: boolean;
   updatedAt: number;
   assets: Record<string, Asset>;
   regime: MarketRegime;
@@ -338,6 +342,7 @@ export interface Settings {
   maxPortfolioHeat: number; // %
   defaultLeverage: number;
   exchange: string;
+  dataProvider: "MOCK" | "OKX" | "BINANCE";
   preferredTimeframe: "1H" | "4H" | "1D" | "1W";
   signalThreshold: number; // 0..100
   watchlist: string[];
@@ -346,4 +351,10 @@ export interface Settings {
   heatCaution: number;
   heatWarning: number;
   heatDanger: number;
+  // 真实账户凭证（默认不填 => 不启用真实交易）
+  apiKey?: string;
+  apiSecret?: string;
+  apiPassphrase?: string;
+  // 真实下单开关（默认 false，需二次确认）
+  liveTradingEnabled?: boolean;
 }

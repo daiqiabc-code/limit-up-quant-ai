@@ -5,6 +5,7 @@ export const DEFAULT_SETTINGS: Settings = {
   maxPortfolioHeat: 6,
   defaultLeverage: 5,
   exchange: "OKX",
+  dataProvider: "MOCK",
   preferredTimeframe: "4H",
   signalThreshold: 70,
   watchlist: ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "DOGEUSDT", "XRPUSDT", "SUIUSDT", "LINKUSDT", "AVAXUSDT", "AAVEUSDT"],
@@ -17,6 +18,7 @@ export const DEFAULT_SETTINGS: Settings = {
   heatCaution: 4,
   heatWarning: 6,
   heatDanger: 6,
+  liveTradingEnabled: false,
 };
 
 export function loadSettings(): Settings {
