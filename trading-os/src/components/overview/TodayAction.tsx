@@ -14,7 +14,7 @@ export function TodayAction() {
   const action = getTodayAction(snapshot);
   const opps = buildOpportunities(snapshot);
   const validSetups = opps.filter((o) => o.action === "LONG" || o.action === "WATCH").length;
-  const top = opps.slice(0, 2).map((o) => o.base ?? o.symbol.replace("USDT", ""));
+  const top = opps.slice(0, 2).map((o) => o.symbol.replace("USDT", ""));
 
   const config = {
     TRADE: { dot: "🟢", label: "TRADE", tone: "bull" as const, note: "存在高质量多头机会，可执行" },
