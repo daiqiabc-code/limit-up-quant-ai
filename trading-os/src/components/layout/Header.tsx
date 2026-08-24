@@ -65,7 +65,12 @@ export function Header() {
           <Badge tone={dsMeta.tone} dot>{dsMeta.label}</Badge>
           {snapshot?.liveTradingEnabled && <Badge tone="bear" dot>真实交易</Badge>}
           <span>交易所：<span className="text-text">{snapshot?.exchange ?? "BINANCE"}</span></span>
-          <span>账户：<span className="text-bull">已连接</span></span>
+          <span>
+            账户：
+            <span className={snapshot?.liveTradingEnabled ? "text-bull" : "text-muted"}>
+              {snapshot?.liveTradingEnabled ? "真实账户" : "模拟账户"}
+            </span>
+          </span>
         </div>
 
         <div className="flex items-center gap-1.5">

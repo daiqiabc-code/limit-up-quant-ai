@@ -446,10 +446,10 @@ export class MockExchangeProvider implements ExchangeProvider {
       createdAt: now - minsAgo * 60 * 1000,
     });
     return [
-      mk("ordcer-1", "BTCUSDT", "LONG", btc.price, 0.04, 2.1, 128, 5),
-      mk("ordcer-2", "BTCUSDT", "LONG", btc.price, -0.02, 1.8, 96, 62),
-      mk("ordcer-3", "ETHUSDT", "LONG", this.engineOf("ETHUSDT").price, 0.06, 1.4, 143, 143),
-      mk("ordcer-4", "SOLUSDT", "LONG", this.engineOf("SOLUSDT").price, 0.03, 0.9, 112, 220),
+      mk("order-1", "BTCUSDT", "LONG", btc.price, 0.04, 2.1, 128, 5),
+      mk("order-2", "BTCUSDT", "LONG", btc.price, -0.02, 1.8, 96, 62),
+      mk("order-3", "ETHUSDT", "LONG", this.engineOf("ETHUSDT").price, 0.06, 1.4, 143, 143),
+      mk("order-4", "SOLUSDT", "LONG", this.engineOf("SOLUSDT").price, 0.03, 0.9, 112, 220),
     ];
   }
 
@@ -510,12 +510,11 @@ export class MockExchangeProvider implements ExchangeProvider {
   }
 
   private alerts(): Alert[] {
-    const btc = this.engineOf("BTCUSDT").price;
     return [
-      { id: "alt-1", type: "PRICE", message: `BTC 价格突破 ${Math.round(btc * 1.15).toLocaleString()}`, status: "ACTIVE", severity: "INFO", createdAt: Date.now() - 3600e3 },
+      { id: "alt-1", type: "PRICE", message: "BTC 价格突破关键阻力位", status: "ACTIVE", severity: "INFO", createdAt: Date.now() - 3600e3 },
       { id: "alt-2", type: "SIGNAL", message: "BTC 信号 > 90", status: "ACTIVE", severity: "INFO", createdAt: Date.now() - 7200e3 },
-      { id: "alt-3", type: "RISK", message: "组合热度 > 4%", status: "ACTIVE", severity: "CAUTION", createdAt: Date.now() - 10800e3 },
-      { id: "alt-4", type: "SYSTEM", message: "策略盈利因子 < 1", status: "ACTIVE", severity: "WARNING", createdAt: Date.now() - 14400e3 },
+      { id: "alt-3", type: "RISK", message: "组合热度接近阈值", status: "ACTIVE", severity: "CAUTION", createdAt: Date.now() - 10800e3 },
+      { id: "alt-4", type: "SYSTEM", message: "策略盈利因子低于 1", status: "ACTIVE", severity: "WARNING", createdAt: Date.now() - 14400e3 },
       { id: "alt-5", type: "PRICE", message: "BTC 跌破 MA80", status: "TRIGGERED", severity: "INFO", createdAt: Date.now() - 86400e3 },
     ];
   }
@@ -609,12 +608,13 @@ export class MockExchangeProvider implements ExchangeProvider {
   }
 
   private discipline(): DisciplineDaily[] {
+    const rand = mulberry32(this.seed + 777);
     const days = ["08-24", "08-23", "08-22", "08-21", "08-20", "08-19", "08-18"];
     return days.map((d) => {
-      const followed = Math.random() > 0.15;
-      const overtrade = Math.random() < 0.1;
-      const violate = Math.random() < 0.05;
-      const fomo = Math.random() < 0.12;
+      const followed = rand() > 0.15;
+      const overtrade = rand() < 0.1;
+      const violate = rand() < 0.05;
+      const fomo = rand() < 0.12;
       const score = clamp(100 - (followed ? 0 : 30) - (overtrade ? 15 : 0) - (violate ? 25 : 0) - (fomo ? 20 : 0), 0, 100);
       return { date: d, followedSystem: followed, overtraded: overtrade, violatedRiskRules: violate, enteredByFomo: fomo, disciplineScore: score };
     });

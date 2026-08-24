@@ -215,18 +215,49 @@ export function computeLiveRegime(symbol: string, asset: Asset, candles: Candle[
 }
 
 // ---------- 持仓现价同步 ----------
+// 实时模式下，将持仓锚定到实时价格，避免 Mock 入场价与实时现价脱节
+// 产生荒谬的巨额浮盈亏。保留原始收益率意图（unrealizedPnlPct），
+// 以实时价反推入场/止损/止盈/爆仓，保证数据自洽。
 function syncPositions(snapshot: TradingSnapshot): void {
   snapshot.positions = snapshot.positions.map((p) => {
     const asset = snapshot.assets[p.symbol];
     if (!asset) return p;
-    const markPrice = asset.price;
-    const pnl = p.side === "LONG" ? markPrice - p.entry : p.entry - markPrice;
-    const pnlAmt = (pnl / (p.entry || 1)) * p.sizeUsd * p.leverage;
+    const realPrice = asset.price;
+    const pnlPct = p.unrealizedPnlPct; // 保留原始收益/亏损意图
+    const lev = p.leverage;
+    const entry = p.side === "LONG" ? realPrice / (1 + pnlPct / lev / 100) : realPrice / (1 - pnlPct / lev / 100);
+    const stopPct = 0.04;
+    const stopLoss = round(p.side === "LONG" ? entry * (1 - stopPct) : entry * (1 + stopPct));
+    const takeProfit = round(p.side === "LONG" ? entry * (1 + stopPct * 2.2) : entry * (1 - stopPct * 2.2));
+    const liquidation = round(p.side === "LONG" ? entry * (1 - 1 / lev + 0.005) : entry * (1 + 1 / lev - 0.005));
     return {
       ...p,
-      markPrice,
-      unrealizedPnl: round(pnlAmt, 2),
-      unrealizedPnlPct: round((pnl / (p.entry || 1)) * 100, 2),
+      entry: round(entry),
+      markPrice: realPrice,
+      stopLoss,
+      takeProfit,
+      liquidation,
+      unrealizedPnl: round((p.sizeUsd * pnlPct) / 100, 2),
+      unrealizedPnlPct: round(pnlPct, 2),
+    };
+  });
+}
+
+// ---------- 执行日志价格锚定 ----------
+// 订单执行日志里的预期/实际成交价也锚定到实时价格，避免出现
+// 与实时行情脱节的 Mock 历史成交价。
+function syncOrders(snapshot: TradingSnapshot): void {
+  snapshot.orders = snapshot.orders.map((o) => {
+    const asset = snapshot.assets[o.symbol];
+    if (!asset) return o;
+    const realPrice = asset.price;
+    const expected = round(realPrice);
+    const actual = round(realPrice * (1 + o.slippage / 100));
+    return {
+      ...o,
+      expectedPrice: expected,
+      actualPrice: actual,
+      price: actual,
     };
   });
 }
@@ -264,4 +295,5 @@ export async function reconcileLiveMarket(
   }
 
   syncPositions(snapshot);
+  syncOrders(snapshot);
 }

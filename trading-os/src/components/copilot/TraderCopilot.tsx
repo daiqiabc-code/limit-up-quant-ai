@@ -26,8 +26,17 @@ export function TraderCopilot() {
   const snapshot = useTradingStore((s) => s.snapshot);
   const [input, setInput] = useState("");
   const [msgs, setMsgs] = useState<Msg[]>([
-    { role: "assistant", text: "你好，我是交易助手。我基于本 Dashboard 的实时数据回答你的问题（模拟数据）。" },
+    { role: "assistant", text: "你好，我是交易助手。我基于本 Dashboard 的实时行情回答你的问题。" },
   ]);
+
+  const dsLabel =
+    snapshot?.dataSource === "LIVE_BINANCE"
+      ? "Binance 实时"
+      : snapshot?.dataSource === "LIVE_OKX"
+        ? "OKX 实时"
+        : snapshot?.dataSource === "FALLBACK"
+          ? "实时降级"
+          : "模拟数据";
 
   const answer = useMemo(() => {
     if (!snapshot) return () => "";
@@ -85,7 +94,9 @@ export function TraderCopilot() {
               </div>
               <div className="leading-tight">
                 <div className="text-sm font-semibold text-text">交易助手</div>
-                <div className="text-[10px] text-warn">模拟数据</div>
+                <div className={cn("text-[10px]", snapshot?.dataSource === "MOCK" || snapshot?.dataSource === "FALLBACK" ? "text-warn" : "text-bull")}>
+                  {dsLabel}
+                </div>
               </div>
             </div>
             <button onClick={() => setOpen(false)} className="rounded-md p-1 text-muted hover:bg-white/5 hover:text-text">

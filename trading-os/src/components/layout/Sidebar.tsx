@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { DataSourceBadge } from "@/components/layout/DataSourceBadge";
 import {
   LayoutDashboard,
   CandlestickChart,
@@ -72,7 +73,7 @@ export function Sidebar() {
       </nav>
 
       <div className="border-t border-border px-4 py-3 text-[10px] leading-relaxed text-muted/60">
-        <span className="text-warn">模拟模式</span>
+        <DataSourceBadge />
         <br />
         纸上交易 · 无真实订单
       </div>

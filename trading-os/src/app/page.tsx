@@ -14,6 +14,7 @@ import { RiskDashboard, PortfolioHeat } from "@/components/risk/RiskDashboard";
 import { SystemHealthCard } from "@/components/system/SystemHealthCard";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { DataSourceBadge } from "@/components/layout/DataSourceBadge";
 import { LoadingState } from "@/components/ui/State";
 import { tfAgo } from "@/lib/utils";
 import { RISK_STATUS_LABEL } from "@/lib/labels";
@@ -38,7 +39,7 @@ export default function OverviewPage() {
         subtitle="市场是什么状态 → 哪里有机会 → 承担多少风险 → 今天做还是等"
         right={
           <div className="flex items-center gap-2">
-            <Badge tone="warn" dot>模拟模式</Badge>
+            <DataSourceBadge />
             <Badge tone="neutral">更新于 {tfAgo(snapshot.updatedAt)}</Badge>
           </div>
         }
