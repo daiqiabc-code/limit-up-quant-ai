@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useTradingStore, buildOpportunities, getTodayAction } from "@/store/tradingStore";
 import { cn } from "@/lib/utils";
 import { Bot, X, Send, Sparkles } from "lucide-react";
-import { REGIME_LABEL, REGIME_LABEL_ZH, RISK_STATUS_LABEL } from "@/lib/labels";
+import { REGIME_LABEL, REGIME_LABEL_ZH, RISK_STATUS_LABEL, ACTION_LABEL, SETUP_LABEL, SIDE_LABEL } from "@/lib/labels";
 import { formatUsd } from "@/lib/utils";
 
 interface Msg {
@@ -26,7 +26,7 @@ export function TraderCopilot() {
   const snapshot = useTradingStore((s) => s.snapshot);
   const [input, setInput] = useState("");
   const [msgs, setMsgs] = useState<Msg[]>([
-    { role: "assistant", text: "你好，我是 Trader Copilot。我基于本 Dashboard 的实时数据回答你的问题（SIMULATION DATA）。" },
+    { role: "assistant", text: "你好，我是交易助手。我基于本 Dashboard 的实时数据回答你的问题（模拟数据）。" },
   ]);
 
   const answer = useMemo(() => {
@@ -38,25 +38,25 @@ export function TraderCopilot() {
     return (q: string): string => {
       const s = q.toLowerCase();
       if (s.includes("市场状态") || s.includes("什么状态") || s.includes("regime")) {
-        return `当前市场状态为 ${REGIME_LABEL[snapshot.regime.state]}（${REGIME_LABEL_ZH[snapshot.regime.state]}）。` +
+        return `当前市场状态为 ${REGIME_LABEL[snapshot.regime.state]}。` +
           `日线 ${dirZh(snapshot.regime.daily)}、4H ${dirZh(snapshot.regime.h4)}、1H ${dirZh(snapshot.regime.h1)}。` +
           `ADX ${snapshot.regime.adx}，成交量 ${snapshot.regime.volume}，结构 ${snapshot.regime.structure}。`;
       }
       if (s.includes("3个") || s.includes("三个") || s.includes("值得关注") || s.includes("什么币")) {
         const top = opps.slice(0, 3);
         return "今天最值得关注的 3 个币：\n" +
-          top.map((o, i) => `${i + 1}. ${o.symbol.replace("USDT", "")} — Score ${o.score}，${o.setup}，建议 ${o.action}`).join("\n");
+          top.map((o, i) => `${i + 1}. ${o.symbol.replace("USDT", "")} — 评分 ${o.score}，${SETUP_LABEL[o.setup]}，建议 ${ACTION_LABEL[o.action]}`).join("\n");
       }
       if (s.includes("为什么") || s.includes("评分") || s.includes("score")) {
         if (!btc) return "暂无数据。";
-        return `BTC 评分 ${btc.score}/100 构成：Trend ${btc.breakdown.trend}/20 · Structure ${btc.breakdown.structure}/20 · Momentum ${btc.breakdown.momentum}/20 · Volume ${btc.breakdown.volume}/15 · HTF ${btc.breakdown.htfAlignment}/10 · Setup ${btc.breakdown.setup}/10 · R:R ${btc.breakdown.riskReward}/5。核心原因：${btc.reason}。`;
+        return `BTC 评分 ${btc.score}/100 构成：趋势 ${btc.breakdown.trend}/20 · 结构 ${btc.breakdown.structure}/20 · 动量 ${btc.breakdown.momentum}/20 · 成交量 ${btc.breakdown.volume}/15 · 大周期共振 ${btc.breakdown.htfAlignment}/10 · 形态 ${btc.breakdown.setup}/10 · 风险回报 ${btc.breakdown.riskReward}/5。核心原因：${btc.reason}。`;
       }
       if (s.includes("风险") || s.includes("heat") || s.includes("组合")) {
-        return `当前组合风险：Portfolio Heat ${snapshot.risk.portfolioHeat}%（${RISK_STATUS_LABEL[snapshot.risk.status]}）。` +
+        return `当前组合风险：组合热度 ${snapshot.risk.portfolioHeat}%（${RISK_STATUS_LABEL[snapshot.risk.status]}）。` +
           `账户权益 ${formatUsd(snapshot.risk.accountEquity, 0)}，每日风险 ${snapshot.risk.dailyRisk}%，回撤 ${snapshot.risk.currentDrawdown}%。`;
       }
       if (s.includes("交易") || s.includes("等待") || s.includes("做") || s.includes("等")) {
-        const label = action === "TRADE" ? "🟢 TRADE（可执行）" : action === "WAIT" ? "🟡 WAIT（等待更强信号）" : "🔴 NO TRADE（停手）";
+        const label = action === "TRADE" ? "🟢 可执行" : action === "WAIT" ? "🟡 等待（等待更强信号）" : "🔴 停手";
         return `当前建议：${label}。有效机会 ${opps.filter(o => o.action === "LONG" || o.action === "WATCH").length} 个，组合热度 ${snapshot.risk.portfolioHeat}%。`;
       }
       return `我可以回答：市场状态、机会扫描、评分构成、组合风险、交易决策等。请尝试下方快捷问题。`;
@@ -84,8 +84,8 @@ export function TraderCopilot() {
                 <Bot className="h-4 w-4" />
               </div>
               <div className="leading-tight">
-                <div className="text-sm font-semibold text-text">Trader Copilot</div>
-                <div className="text-[10px] text-warn">SIMULATION DATA</div>
+                <div className="text-sm font-semibold text-text">交易助手</div>
+                <div className="text-[10px] text-warn">模拟数据</div>
               </div>
             </div>
             <button onClick={() => setOpen(false)} className="rounded-md p-1 text-muted hover:bg-white/5 hover:text-text">

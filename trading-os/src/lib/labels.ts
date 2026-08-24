@@ -1,15 +1,20 @@
-import type { RegimeState, Trend, Action, RiskLevel, RiskStatus, SystemStatus } from "@/types";
+import type {
+  RegimeState,
+  Trend,
+  Action,
+  RiskLevel,
+  RiskStatus,
+  SystemStatus,
+  Side,
+  SetupType,
+  SetupStage,
+  Impact,
+  AlertType,
+  AlertStatus,
+} from "@/types";
 
 // 统一的颜色映射，保证全站一致
 export const REGIME_LABEL: Record<RegimeState, string> = {
-  BULL_TREND: "BULL TREND",
-  BEAR_TREND: "BEAR TREND",
-  RANGE: "RANGE",
-  TRANSITION: "TRANSITION",
-  CRASH_RISK: "CRASH RISK",
-};
-
-export const REGIME_LABEL_ZH: Record<RegimeState, string> = {
   BULL_TREND: "多头趋势",
   BEAR_TREND: "空头趋势",
   RANGE: "震荡区间",
@@ -17,42 +22,89 @@ export const REGIME_LABEL_ZH: Record<RegimeState, string> = {
   CRASH_RISK: "崩盘风险",
 };
 
+export const REGIME_LABEL_ZH: Record<RegimeState, string> = REGIME_LABEL;
+
 export const TREND_LABEL: Record<Trend, string> = {
-  BULL: "BULL",
-  BEAR: "BEAR",
-  RANGE: "RANGE",
-  TRANSITION: "TRANSITION",
-  CRASH_RISK: "CRASH RISK",
+  BULL: "多头",
+  BEAR: "空头",
+  RANGE: "震荡",
+  TRANSITION: "转换",
+  CRASH_RISK: "崩盘风险",
 };
 
 export const ACTION_LABEL: Record<Action, string> = {
-  LONG: "LONG",
-  SHORT: "SHORT",
-  WATCH: "WATCH",
-  WAIT: "WAIT",
-  AVOID: "AVOID",
-  REDUCE: "REDUCE",
-  EXIT: "EXIT",
+  LONG: "做多",
+  SHORT: "做空",
+  WATCH: "关注",
+  WAIT: "等待",
+  AVOID: "回避",
+  REDUCE: "减仓",
+  EXIT: "离场",
+};
+
+export const SIDE_LABEL: Record<Side, string> = {
+  LONG: "做多",
+  SHORT: "做空",
+  FLAT: "空仓",
+};
+
+export const SETUP_LABEL: Record<SetupType, string> = {
+  PULLBACK: "回踩",
+  BREAKOUT: "突破",
+  RE_ENTRY: "二次入场",
+  RESTART: "重启",
+  RANGE: "区间",
+  NONE: "无",
+};
+
+export const SETUP_STAGE_LABEL: Record<SetupStage, string> = {
+  WAIT: "等待",
+  BREAKOUT: "突破",
+  PULLBACK: "回踩",
+  RESTART: "重启",
+  ENTRY: "入场",
+  MANAGE: "持仓管理",
+  EXIT: "离场",
+  INVALIDATED: "失效",
+};
+
+export const IMPACT_LABEL: Record<Impact, string> = {
+  BULLISH: "利好",
+  BEARISH: "利空",
+  NEUTRAL: "中性",
+};
+
+export const ALERT_TYPE_LABEL: Record<AlertType, string> = {
+  PRICE: "价格",
+  SIGNAL: "信号",
+  RISK: "风险",
+  SYSTEM: "系统",
+};
+
+export const ALERT_STATUS_LABEL: Record<AlertStatus, string> = {
+  ACTIVE: "活跃",
+  TRIGGERED: "已触发",
+  DISMISSED: "已忽略",
 };
 
 export const RISK_LABEL: Record<RiskLevel, string> = {
-  LOW: "Low",
-  MEDIUM: "Medium",
-  HIGH: "High",
+  LOW: "低",
+  MEDIUM: "中",
+  HIGH: "高",
 };
 
 export const RISK_STATUS_LABEL: Record<RiskStatus, string> = {
-  SAFE: "SAFE",
-  CAUTION: "CAUTION",
-  WARNING: "WARNING",
-  DANGER: "DANGER",
+  SAFE: "安全",
+  CAUTION: "谨慎",
+  WARNING: "警告",
+  DANGER: "危险",
 };
 
 export const SYSTEM_STATUS_LABEL: Record<SystemStatus, string> = {
-  NORMAL: "NORMAL",
-  WARNING: "WARNING",
-  SYSTEM_DEGRADATION: "SYSTEM DEGRADATION",
-  SYSTEM_FAILURE: "SYSTEM FAILURE",
+  NORMAL: "正常",
+  WARNING: "警告",
+  SYSTEM_DEGRADATION: "系统降级",
+  SYSTEM_FAILURE: "系统故障",
 };
 
 export function regimeTone(state: RegimeState): "bull" | "bear" | "warn" | "purple" {

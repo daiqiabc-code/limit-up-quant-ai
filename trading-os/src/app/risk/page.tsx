@@ -11,7 +11,7 @@ export default function RiskPage() {
 
   return (
     <PageContainer>
-      <PageTitle title="Risk" subtitle="风控中枢：最大潜在亏损 / 账户权益" right={<Badge tone="warn" dot>SIMULATION MODE</Badge>} />
+      <PageTitle title="风控" subtitle="风控中枢：最大潜在亏损 / 账户权益" right={<Badge tone="warn" dot>模拟模式</Badge>} />
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         <div className="xl:col-span-2"><RiskDashboard /></div>
         <PortfolioHeat />

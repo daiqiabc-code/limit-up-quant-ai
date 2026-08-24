@@ -17,9 +17,9 @@ export function TodayAction() {
   const top = opps.slice(0, 2).map((o) => o.symbol.replace("USDT", ""));
 
   const config = {
-    TRADE: { dot: "🟢", label: "TRADE", tone: "bull" as const, note: "存在高质量多头机会，可执行" },
-    WAIT: { dot: "🟡", label: "WAIT", tone: "warn" as const, note: "等待更强信号或回踩确认" },
-    NO_TRADE: { dot: "🔴", label: "NO TRADE", tone: "bear" as const, note: "风险过高或信号不足，停手" },
+    TRADE: { dot: "🟢", label: "可执行", tone: "bull" as const, note: "存在高质量多头机会，可执行" },
+    WAIT: { dot: "🟡", label: "等待", tone: "warn" as const, note: "等待更强信号或回踩确认" },
+    NO_TRADE: { dot: "🔴", label: "停手", tone: "bear" as const, note: "风险过高或信号不足，停手" },
   }[action];
 
   return (
@@ -28,7 +28,7 @@ export function TodayAction() {
         <div className="flex items-center gap-4">
           <div className="text-4xl leading-none">{config.dot}</div>
           <div>
-            <div className="text-[11px] uppercase tracking-[0.2em] text-muted">Today&apos;s Action</div>
+            <div className="text-[11px] uppercase tracking-[0.2em] text-muted">今日操作</div>
             <div
               className={cn(
                 "mt-1 text-3xl font-bold tracking-tight",
@@ -44,23 +44,22 @@ export function TodayAction() {
         <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
           <Metric
             icon={<Activity className="h-4 w-4 text-muted" />}
-            label="Market Regime"
+            label="市场状态"
             value={REGIME_LABEL[snapshot.regime.state]}
-            badge={<Badge tone={regimeTone(snapshot.regime.state)} dot>{REGIME_LABEL_ZH[snapshot.regime.state]}</Badge>}
           />
           <Metric
             icon={<TrendingUp className="h-4 w-4 text-muted" />}
-            label="Valid Setups"
+            label="有效机会"
             value={String(validSetups)}
           />
           <Metric
             icon={<Flame className="h-4 w-4 text-muted" />}
-            label="Portfolio Heat"
+            label="组合热度"
             value={`${snapshot.risk.portfolioHeat}%`}
           />
           <Metric
             icon={<ShieldCheck className="h-4 w-4 text-muted" />}
-            label="Risk Status"
+            label="风险状态"
             value={RISK_STATUS_LABEL[snapshot.risk.status]}
             valueClass={cn(
               snapshot.risk.status === "SAFE"
@@ -74,7 +73,7 @@ export function TodayAction() {
       </div>
 
       <div className="mt-4 flex items-center gap-2 border-t border-border pt-3 text-xs text-muted">
-        <span className="font-medium text-text">Priority</span>
+        <span className="font-medium text-text">优先关注</span>
         {top.map((t, i) => (
           <span key={t} className="flex items-center gap-1">
             {i > 0 && <ArrowRight className="h-3 w-3 text-muted/50" />}

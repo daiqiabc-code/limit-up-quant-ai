@@ -2,7 +2,7 @@
 
 import { useTradingStore } from "@/store/tradingStore";
 import { formatPrice, formatPct, tfAgo } from "@/lib/utils";
-import { REGIME_LABEL, regimeTone } from "@/lib/labels";
+import { REGIME_LABEL_ZH, regimeTone } from "@/lib/labels";
 import { Badge } from "@/components/ui/Badge";
 import { Bell, Wifi, WifiOff, Server, Circle, Bot } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -49,14 +49,14 @@ export function Header() {
         {regime && (
           <div className="hidden items-center gap-2 md:flex">
             <Badge tone={regimeTone(regime.state)} dot>
-              Market Regime: {REGIME_LABEL[regime.state]}
+              市场状态：{REGIME_LABEL_ZH[regime.state]}
             </Badge>
           </div>
         )}
 
         <div className="hidden items-center gap-1 text-xs text-muted lg:flex">
           <Circle className="h-1.5 w-1.5 fill-bull text-bull" />
-          Last Update: {lastUpdate ? tfAgo(lastUpdate) : "—"}
+          最后更新：{lastUpdate ? tfAgo(lastUpdate) : "—"}
         </div>
       </div>
 
@@ -64,8 +64,8 @@ export function Header() {
         <div className="hidden items-center gap-4 text-[11px] text-muted sm:flex">
           <Badge tone={dsMeta.tone} dot>{dsMeta.label}</Badge>
           {snapshot?.liveTradingEnabled && <Badge tone="bear" dot>真实交易</Badge>}
-          <span>Exchange: <span className="text-text">{snapshot?.exchange ?? "OKX"}</span></span>
-          <span>Account: <span className="text-bull">Connected</span></span>
+          <span>交易所：<span className="text-text">{snapshot?.exchange ?? "BINANCE"}</span></span>
+          <span>账户：<span className="text-bull">已连接</span></span>
         </div>
 
         <div className="flex items-center gap-1.5">
@@ -84,7 +84,7 @@ export function Header() {
               "rounded-md p-1.5 transition-colors",
               copilotOpen ? "bg-info/10 text-info" : "text-muted hover:bg-white/5 hover:text-text",
             )}
-            aria-label="Trader Copilot"
+            aria-label="交易助手"
           >
             <Bot className="h-4 w-4" />
           </button>

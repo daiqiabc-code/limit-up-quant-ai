@@ -4,6 +4,7 @@ import { useTradingStore } from "@/store/tradingStore";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { tfAgo } from "@/lib/utils";
+import { IMPACT_LABEL } from "@/lib/labels";
 
 export function IntelligenceList() {
   const snapshot = useTradingStore((s) => s.snapshot);
@@ -17,7 +18,7 @@ export function IntelligenceList() {
 
       <Card>
         <div className="mb-3">
-          <h3 className="text-sm font-semibold text-text">Top Market Events</h3>
+          <h3 className="text-sm font-semibold text-text">重点市场事件</h3>
           <p className="text-xs text-muted">按影响力排序</p>
         </div>
         <div className="space-y-2">
@@ -30,10 +31,10 @@ export function IntelligenceList() {
               </div>
               <div className="flex flex-col items-end gap-1">
                 <Badge tone={e.impact === "BULLISH" ? "bull" : e.impact === "BEARISH" ? "bear" : "neutral"}>
-                  {e.impact}
+                  {IMPACT_LABEL[e.impact]}
                 </Badge>
                 <div className="flex items-center gap-1">
-                  <span className="text-[10px] text-muted">Confidence</span>
+                  <span className="text-[10px] text-muted">置信度</span>
                   <span className="num text-xs font-semibold text-text">{e.confidence}</span>
                 </div>
               </div>

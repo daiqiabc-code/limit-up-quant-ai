@@ -5,13 +5,13 @@ import { Drawer } from "@/components/ui/Drawer";
 import { cn, formatPrice } from "@/lib/utils";
 
 const BREAKDOWN = [
-  { key: "trend", label: "Trend", max: 20 },
-  { key: "structure", label: "Structure", max: 20 },
-  { key: "momentum", label: "Momentum", max: 20 },
-  { key: "volume", label: "Volume", max: 15 },
-  { key: "htfAlignment", label: "HTF Alignment", max: 10 },
-  { key: "setup", label: "Setup", max: 10 },
-  { key: "riskReward", label: "Risk/Reward", max: 5 },
+  { key: "trend", label: "趋势", max: 20 },
+  { key: "structure", label: "结构", max: 20 },
+  { key: "momentum", label: "动量", max: 20 },
+  { key: "volume", label: "成交量", max: 15 },
+  { key: "htfAlignment", label: "大周期共振", max: 10 },
+  { key: "setup", label: "形态", max: 10 },
+  { key: "riskReward", label: "风险回报", max: 5 },
 ] as const;
 
 export function SignalDetailDrawer() {
@@ -25,14 +25,14 @@ export function SignalDetailDrawer() {
     <Drawer
       open={!!symbol && !!signal}
       onClose={() => openSignalDetail(null)}
-      title={symbol ? `${symbol.replace("USDT", "")} — Signal 评分` : ""}
+      title={symbol ? `${symbol.replace("USDT", "")} — 信号评分` : ""}
       subtitle="完整评分逻辑，0～100 分"
     >
       {signal && (
         <div className="space-y-4">
           <div className="flex items-center justify-between rounded-lg border border-border bg-surface p-4">
             <div>
-              <div className="text-[11px] uppercase tracking-wide text-muted">Total Score</div>
+              <div className="text-[11px] uppercase tracking-wide text-muted">总分</div>
               <div className="mt-1 text-3xl font-bold text-text">{signal.score}<span className="text-base text-muted">/100</span></div>
             </div>
             <div className="text-right text-xs leading-relaxed text-muted">

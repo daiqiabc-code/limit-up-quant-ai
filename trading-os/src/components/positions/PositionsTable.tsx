@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTradingStore } from "@/store/tradingStore";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { SIDE_LABEL } from "@/lib/labels";
 import { formatPrice, formatUsd, formatPct, cn } from "@/lib/utils";
 import type { Position } from "@/types";
 
@@ -24,17 +25,17 @@ export function PositionsTable({ compact = false }: { compact?: boolean }) {
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border text-left text-[11px] uppercase tracking-wide text-muted">
-            <th className="px-3 py-2 font-medium">Symbol</th>
-            <th className="px-3 py-2 font-medium">Side</th>
-            <th className="px-3 py-2 font-medium">Entry</th>
-            <th className="px-3 py-2 font-medium">Mark</th>
-            <th className="px-3 py-2 font-medium">Size</th>
-            <th className="px-3 py-2 font-medium">Lev</th>
-            <th className="px-3 py-2 font-medium">uPnL</th>
-            <th className="px-3 py-2 font-medium">Stop</th>
-            <th className="px-3 py-2 font-medium">TP</th>
-            <th className="px-3 py-2 font-medium">Liq</th>
-            <th className="px-3 py-2 font-medium">Actions</th>
+            <th className="px-3 py-2 font-medium">币种</th>
+            <th className="px-3 py-2 font-medium">方向</th>
+            <th className="px-3 py-2 font-medium">入场</th>
+            <th className="px-3 py-2 font-medium">现价</th>
+            <th className="px-3 py-2 font-medium">仓位</th>
+            <th className="px-3 py-2 font-medium">杠杆</th>
+            <th className="px-3 py-2 font-medium">浮动盈亏</th>
+            <th className="px-3 py-2 font-medium">止损</th>
+            <th className="px-3 py-2 font-medium">止盈</th>
+            <th className="px-3 py-2 font-medium">爆仓价</th>
+            <th className="px-3 py-2 font-medium">操作</th>
           </tr>
         </thead>
         <tbody>
@@ -55,7 +56,7 @@ function PositionRow({ p, compact }: { p: Position; compact: boolean }) {
         <span className="font-medium text-text">{p.symbol.replace("USDT", "")}</span>
       </td>
       <td className="px-3 py-2.5">
-        <Badge tone={p.side === "LONG" ? "bull" : "bear"}>{p.side}</Badge>
+        <Badge tone={p.side === "LONG" ? "bull" : "bear"}>{SIDE_LABEL[p.side]}</Badge>
       </td>
       <td className="num px-3 py-2.5 text-text">{formatPrice(p.entry)}</td>
       <td className="num px-3 py-2.5 text-text">{formatPrice(p.markPrice)}</td>
@@ -70,9 +71,9 @@ function PositionRow({ p, compact }: { p: Position; compact: boolean }) {
       <td className="num px-3 py-2.5 text-muted">{formatPrice(p.liquidation)}</td>
       <td className="px-3 py-2.5">
         <div className="flex gap-1">
-          <ActionBtn label="Reduce" />
-          <ActionBtn label="Close" />
-          <ActionBtn label="Stop" />
+          <ActionBtn label="减仓" />
+          <ActionBtn label="平仓" />
+          <ActionBtn label="止损" />
         </div>
       </td>
     </tr>
@@ -92,7 +93,7 @@ function ActionBtn({ label }: { label: string }) {
         clicked ? "border-bull/50 bg-bull/10 text-bull" : "border-border text-muted hover:border-muted hover:text-text",
       )}
     >
-      {clicked ? "Paper" : label}
+      {clicked ? "模拟" : label}
     </button>
   );
 }

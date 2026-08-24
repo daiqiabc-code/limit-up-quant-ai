@@ -14,9 +14,9 @@ export default function OpportunitiesPage() {
   return (
     <PageContainer>
       <PageTitle
-        title="Opportunities"
+        title="机会"
         subtitle="机会扫描：排序 / 搜索 / 过滤 / 点击查看完整评分"
-        right={<Badge tone="warn" dot>SIMULATION MODE</Badge>}
+        right={<Badge tone="warn" dot>模拟模式</Badge>}
       />
       <OpportunityScanner />
       <OpportunityDrawer />

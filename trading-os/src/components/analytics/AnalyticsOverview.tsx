@@ -40,7 +40,7 @@ export function AnalyticsOverview() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold text-text">Analytics 复盘</h2>
+        <h2 className="text-base font-semibold text-text">绩效复盘</h2>
         <div className="flex items-center gap-1">
           {RANGES.map((r) => (
             <button
@@ -58,21 +58,21 @@ export function AnalyticsOverview() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
-        <Metric label="Win Rate" value={`${a.winRate}%`} tone="bull" />
-        <Metric label="Profit Factor" value={a.profitFactor.toFixed(2)} tone="bull" />
-        <Metric label="Expectancy" value={`${a.expectancy}R`} tone="bull" />
-        <Metric label="Avg R" value={a.avgR.toFixed(2)} />
-        <Metric label="Sharpe" value={a.sharpe.toFixed(2)} />
-        <Metric label="Avg Win" value={formatUsd(a.avgWin)} tone="bull" />
-        <Metric label="Avg Loss" value={formatUsd(a.avgLoss)} tone="bear" />
-        <Metric label="Max Drawdown" value={`${a.maxDrawdown}%`} tone="warn" />
-        <Metric label="Calmar" value={a.calmar.toFixed(2)} />
-        <Metric label="Net PnL" value={formatUsd(a.netPnl)} tone="bull" />
+        <Metric label="胜率" value={`${a.winRate}%`} tone="bull" />
+        <Metric label="盈亏比" value={a.profitFactor.toFixed(2)} tone="bull" />
+        <Metric label="期望" value={`${a.expectancy}R`} tone="bull" />
+        <Metric label="平均 R" value={a.avgR.toFixed(2)} />
+        <Metric label="夏普" value={a.sharpe.toFixed(2)} />
+        <Metric label="平均盈利" value={formatUsd(a.avgWin)} tone="bull" />
+        <Metric label="平均亏损" value={formatUsd(a.avgLoss)} tone="bear" />
+        <Metric label="最大回撤" value={`${a.maxDrawdown}%`} tone="warn" />
+        <Metric label="卡玛" value={a.calmar.toFixed(2)} />
+        <Metric label="净盈亏" value={formatUsd(a.netPnl)} tone="bull" />
       </div>
 
       <Card>
         <div className="mb-3">
-          <h3 className="text-sm font-semibold text-text">Equity Curve</h3>
+          <h3 className="text-sm font-semibold text-text">净值曲线</h3>
           <p className="text-xs text-muted">账户净值曲线（模拟）</p>
         </div>
         <div className="h-64 w-full">

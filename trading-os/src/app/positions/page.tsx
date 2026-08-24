@@ -13,15 +13,15 @@ export default function PositionsPage() {
   return (
     <PageContainer>
       <PageTitle
-        title="Positions"
+        title="持仓"
         subtitle="当前持仓 · 阶段一按钮仅模拟（Paper）"
-        right={<Badge tone="warn" dot>SIMULATION MODE</Badge>}
+        right={<Badge tone="warn" dot>模拟模式</Badge>}
       />
       <Card>
         <PositionsTable />
       </Card>
       <p className="mt-3 text-xs text-muted">
-        不支持真实下单。Reduce / Close / Move Stop / Add Position 均为模拟交互，真实交易默认关闭。
+        不支持真实下单。减仓、平仓、移动止损、加仓均为模拟交互，真实交易默认关闭。
       </p>
     </PageContainer>
   );

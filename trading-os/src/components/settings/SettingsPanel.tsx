@@ -64,13 +64,13 @@ export function SettingsPanel() {
         />
         <div className="grid grid-cols-1 gap-4">
           <div>
-            <label className="mb-1 block text-xs text-muted">Data Provider</label>
+            <label className="mb-1 block text-xs text-muted">数据源</label>
             <select
               value={settings.dataProvider}
               onChange={(e) => update({ dataProvider: e.target.value as never, liveTradingEnabled: false })}
               className="h-9 w-full rounded-md border border-border bg-surface px-2 text-xs text-text focus:border-info focus:outline-none"
             >
-              <option value="MOCK">模拟数据（Mock）</option>
+              <option value="MOCK">模拟数据</option>
               <option value="OKX">OKX 现货行情</option>
               <option value="BINANCE">Binance 现货行情</option>
             </select>
@@ -132,24 +132,24 @@ export function SettingsPanel() {
       </Card>
 
       <Card>
-        <CardHeader title="风控参数" subtitle="Portfolio Heat 分级阈值可自定义" />
+        <CardHeader title="风控参数" subtitle="组合热度分级阈值可自定义" />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {num("riskPerTrade", "Risk Per Trade (%)", 0.1, 5, 0.1)}
-          {num("maxPortfolioHeat", "Max Portfolio Heat (%)", 1, 20, 0.5)}
-          {num("defaultLeverage", "Default Leverage", 1, 100, 1)}
-          {num("signalThreshold", "Signal Threshold", 0, 100, 1)}
+          {num("riskPerTrade", "单笔风险 (%)", 0.1, 5, 0.1)}
+          {num("maxPortfolioHeat", "最大组合热度 (%)", 1, 20, 0.5)}
+          {num("defaultLeverage", "默认杠杆", 1, 100, 1)}
+          {num("signalThreshold", "信号阈值", 0, 100, 1)}
         </div>
       </Card>
 
       <Card>
-        <CardHeader title="Heat 分级阈值" />
+        <CardHeader title="热度分级阈值" />
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           {(
             [
-              ["heatSafe", "SAFE <", 2],
-              ["heatCaution", "CAUTION <", 4],
-              ["heatWarning", "WARNING <", 6],
-              ["heatDanger", "DANGER ≥", 6],
+              ["heatSafe", "安全 <", 2],
+              ["heatCaution", "谨慎 <", 4],
+              ["heatWarning", "警告 <", 6],
+              ["heatDanger", "危险 ≥", 6],
             ] as const
           ).map(([k, label]) => (
             <div key={k}>
@@ -169,7 +169,7 @@ export function SettingsPanel() {
         <CardHeader title="交易偏好" />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block text-xs text-muted">Exchange</label>
+            <label className="mb-1 block text-xs text-muted">交易所</label>
             <select
               value={settings.exchange}
               onChange={(e) => update({ exchange: e.target.value })}
@@ -179,7 +179,7 @@ export function SettingsPanel() {
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-xs text-muted">Preferred Timeframe</label>
+            <label className="mb-1 block text-xs text-muted">首选周期</label>
             <select
               value={settings.preferredTimeframe}
               onChange={(e) => update({ preferredTimeframe: e.target.value as never })}
@@ -192,7 +192,7 @@ export function SettingsPanel() {
       </Card>
 
       <Card>
-        <CardHeader title="Watchlist" subtitle="点击切换关注标的" />
+        <CardHeader title="自选列表" subtitle="点击切换关注标的" />
         <div className="flex flex-wrap gap-2">
           {COINS.map((c) => {
             const on = settings.watchlist.includes(c.symbol);

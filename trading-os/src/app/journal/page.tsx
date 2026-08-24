@@ -12,7 +12,7 @@ export default function JournalPage() {
 
   return (
     <PageContainer>
-      <PageTitle title="Journal" subtitle="交易日志与纪律评分" right={<Badge tone="warn" dot>SIMULATION MODE</Badge>} />
+      <PageTitle title="日志" subtitle="交易日志与纪律评分" right={<Badge tone="warn" dot>模拟模式</Badge>} />
       <div className="space-y-6">
         <JournalPanel />
         <DisciplinePanel />

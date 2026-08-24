@@ -18,17 +18,17 @@ import {
 } from "lucide-react";
 
 const NAV = [
-  { href: "/", label: "Overview", icon: LayoutDashboard },
-  { href: "/market", label: "Market", icon: CandlestickChart },
-  { href: "/opportunities", label: "Opportunities", icon: Radar },
-  { href: "/positions", label: "Positions", icon: Wallet },
-  { href: "/risk", label: "Risk", icon: ShieldAlert },
-  { href: "/execution", label: "Execution", icon: Zap },
-  { href: "/journal", label: "Journal", icon: BookOpen },
-  { href: "/analytics", label: "Analytics", icon: BarChart3 },
-  { href: "/strategies", label: "Strategies", icon: Target },
-  { href: "/intelligence", label: "Intelligence", icon: BrainCircuit },
-  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/", label: "总览", icon: LayoutDashboard },
+  { href: "/market", label: "行情", icon: CandlestickChart },
+  { href: "/opportunities", label: "机会", icon: Radar },
+  { href: "/positions", label: "持仓", icon: Wallet },
+  { href: "/risk", label: "风控", icon: ShieldAlert },
+  { href: "/execution", label: "执行", icon: Zap },
+  { href: "/journal", label: "日志", icon: BookOpen },
+  { href: "/analytics", label: "复盘", icon: BarChart3 },
+  { href: "/strategies", label: "策略", icon: Target },
+  { href: "/intelligence", label: "情报", icon: BrainCircuit },
+  { href: "/settings", label: "设置", icon: Settings },
 ];
 
 export function Sidebar() {
@@ -41,13 +41,13 @@ export function Sidebar() {
         </div>
         <div className="leading-tight">
           <div className="text-[13px] font-bold tracking-wide text-text">TRADING OS</div>
-          <div className="text-[9px] uppercase tracking-[0.2em] text-muted">Personal</div>
+          <div className="text-[9px] uppercase tracking-[0.2em] text-muted">个人交易操作系统</div>
         </div>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-2 py-3">
         <div className="mb-1 px-2 text-[10px] uppercase tracking-[0.15em] text-muted/60">
-          Terminal
+          终端
         </div>
         {NAV.map((item) => {
           const active =
@@ -72,9 +72,9 @@ export function Sidebar() {
       </nav>
 
       <div className="border-t border-border px-4 py-3 text-[10px] leading-relaxed text-muted/60">
-        <span className="text-warn">SIMULATION MODE</span>
+        <span className="text-warn">模拟模式</span>
         <br />
-        Paper Trading · No real orders
+        纸上交易 · 无真实订单
       </div>
     </aside>
   );

@@ -13,7 +13,7 @@ export default function MarketPage() {
 
   return (
     <PageContainer>
-      <PageTitle title="Market" subtitle="市场状态与核心图表" right={<Badge tone="warn" dot>SIMULATION MODE</Badge>} />
+      <PageTitle title="行情" subtitle="市场状态与核心图表" right={<Badge tone="warn" dot>模拟模式</Badge>} />
       <div className="space-y-4">
         <MarketRegimeCard regime={snapshot.regime} />
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">

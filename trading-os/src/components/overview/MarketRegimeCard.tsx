@@ -23,27 +23,26 @@ export function MarketRegimeCard({ regime }: { regime: MR }) {
       />
       <div className="flex items-start justify-between">
         <div>
-          <div className="text-[11px] uppercase tracking-[0.2em] text-muted">Market Regime</div>
+          <div className="text-[11px] uppercase tracking-[0.2em] text-muted">市场状态</div>
           <div className="mt-1 text-2xl font-bold" style={{ color }}>
             {REGIME_LABEL[regime.state]}
           </div>
-          <div className="mt-0.5 text-xs text-muted">{REGIME_LABEL_ZH[regime.state]}</div>
         </div>
         <div className="grid grid-cols-3 gap-4 text-center">
-          <DirCell label="Daily" d={regime.daily} />
+          <DirCell label="日线" d={regime.daily} />
           <DirCell label="4H" d={regime.h4} />
           <DirCell label="1H" d={regime.h1} />
         </div>
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <Info label="MA80" value={regime.ma80} />
+        <Info label="MA80" value={regime.ma80 === "ABOVE" ? "之上" : "之下"} />
         <Info label="ADX" value={String(regime.adx)} />
-        <Info label="Volume" value={regime.volume} />
-        <Info label="Volatility" value={regime.volatility} />
+        <Info label="成交量" value={regime.volume === "EXPANDING" ? "放大" : regime.volume === "CONTRACTING" ? "萎缩" : "正常"} />
+        <Info label="波动率" value={regime.volatility === "LOW" ? "低" : regime.volatility === "NORMAL" ? "中" : regime.volatility === "HIGH" ? "高" : "极高"} />
       </div>
       <div className="mt-3 border-t border-border pt-2 text-xs text-muted">
-        Structure <span className="font-mono text-text">{regime.structure}</span>
+        结构 <span className="font-mono text-text">{regime.structure}</span>
       </div>
     </Card>
   );

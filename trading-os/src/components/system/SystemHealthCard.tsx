@@ -13,20 +13,20 @@ export function SystemHealthCard() {
   const h = snapshot.systemHealth;
 
   const metrics = [
-    { label: "30D PF", value: h.pf30d.toFixed(2), status: h.pf30d >= 1 ? "GOOD" : "BAD" },
-    { label: "90D PF", value: h.pf90d.toFixed(2), status: h.pf90d >= 1 ? "GOOD" : "BAD" },
-    { label: "Current Drawdown", value: `${h.currentDrawdown}%`, status: h.currentDrawdown < 4 ? "GOOD" : h.currentDrawdown < 6 ? "WARN" : "BAD" },
-    { label: "Rule Compliance", value: `${h.ruleCompliance}%`, status: h.ruleCompliance >= 90 ? "GOOD" : h.ruleCompliance >= 80 ? "WARN" : "BAD" },
-    { label: "Execution Quality", value: `${h.executionQuality}%`, status: h.executionQuality >= 90 ? "GOOD" : "WARN" },
-    { label: "Data Quality", value: `${h.dataQuality}%`, status: "GOOD" },
+    { label: "30日盈亏比", value: h.pf30d.toFixed(2), status: h.pf30d >= 1 ? "GOOD" : "BAD" },
+    { label: "90日盈亏比", value: h.pf90d.toFixed(2), status: h.pf90d >= 1 ? "GOOD" : "BAD" },
+    { label: "当前回撤", value: `${h.currentDrawdown}%`, status: h.currentDrawdown < 4 ? "GOOD" : h.currentDrawdown < 6 ? "WARN" : "BAD" },
+    { label: "规则遵循", value: `${h.ruleCompliance}%`, status: h.ruleCompliance >= 90 ? "GOOD" : h.ruleCompliance >= 80 ? "WARN" : "BAD" },
+    { label: "执行质量", value: `${h.executionQuality}%`, status: h.executionQuality >= 90 ? "GOOD" : "WARN" },
+    { label: "数据质量", value: `${h.dataQuality}%`, status: "GOOD" },
   ];
 
   return (
     <Card>
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold text-text">System Health</h3>
-          <Badge tone="bull" dot>{h.strategyStatus === "ACTIVE" ? "ACTIVE" : "PAUSED"}</Badge>
+          <h3 className="text-sm font-semibold text-text">系统健康状态</h3>
+          <Badge tone="bull" dot>{h.strategyStatus === "ACTIVE" ? "运行中" : "已暂停"}</Badge>
         </div>
         <Badge tone={systemStatusTone(h.status)}>{SYSTEM_STATUS_LABEL[h.status]}</Badge>
       </div>

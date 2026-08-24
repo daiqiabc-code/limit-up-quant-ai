@@ -12,7 +12,7 @@ export default function IntelligencePage() {
 
   return (
     <PageContainer>
-      <PageTitle title="Intelligence" subtitle="市场情报与预警" right={<Badge tone="warn" dot>SIMULATION MODE</Badge>} />
+      <PageTitle title="情报" subtitle="市场情报与预警" right={<Badge tone="warn" dot>模拟模式</Badge>} />
       <div className="space-y-4">
         <IntelligenceList />
         <AlertCenter />

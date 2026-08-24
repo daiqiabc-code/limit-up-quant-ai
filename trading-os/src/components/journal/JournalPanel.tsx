@@ -4,14 +4,14 @@ import { useState } from "react";
 import { useTradingStore } from "@/store/tradingStore";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { REGIME_LABEL_ZH, regimeTone } from "@/lib/labels";
+import { REGIME_LABEL_ZH, regimeTone, SIDE_LABEL, SETUP_LABEL } from "@/lib/labels";
 import { formatUsd, formatPrice, cn } from "@/lib/utils";
 import type { Trade, MistakeType, RegimeState, SetupType, Side } from "@/types";
 import { Plus, X, Pencil } from "lucide-react";
 
 const MISTAKES: { v: MistakeType; label: string }[] = [
   { v: "NONE", label: "无" },
-  { v: "FOMO", label: "FOMO" },
+  { v: "FOMO", label: "冲动入场" },
   { v: "EARLY_ENTRY", label: "提前入场" },
   { v: "LATE_ENTRY", label: "延迟入场" },
   { v: "OVERSIZING", label: "仓位过大" },
@@ -55,7 +55,7 @@ export function JournalPanel() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold text-text">Trade Journal</h2>
+        <h2 className="text-base font-semibold text-text">交易日志</h2>
         <button
           onClick={() => { setEditing(null); setShowForm(true); }}
           className="flex items-center gap-1.5 rounded-lg bg-info px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-info/80"
@@ -82,9 +82,9 @@ export function JournalPanel() {
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div className="flex items-center gap-2">
                 <span className="font-semibold text-text">{t.symbol.replace("USDT", "")}</span>
-                <Badge tone={t.side === "LONG" ? "bull" : "bear"}>{t.side}</Badge>
+                <Badge tone={t.side === "LONG" ? "bull" : "bear"}>{SIDE_LABEL[t.side]}</Badge>
                 <Badge tone={regimeTone(t.regime)}>{REGIME_LABEL_ZH[t.regime]}</Badge>
-                <Badge tone="neutral">{t.setup}</Badge>
+                <Badge tone="neutral">{SETUP_LABEL[t.setup]}</Badge>
                 {t.mistake !== "NONE" && <Badge tone="bear">{MISTAKES.find(m => m.v === t.mistake)?.label}</Badge>}
               </div>
               <div className="flex items-center gap-2">
@@ -104,13 +104,13 @@ export function JournalPanel() {
             </div>
 
             <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted sm:grid-cols-4">
-              <span>Entry <span className="num text-text">{formatPrice(t.entry)}</span></span>
-              <span>Exit <span className="num text-text">{formatPrice(t.exit)}</span></span>
-              <span>Stop <span className="num text-bear">{formatPrice(t.stop)}</span></span>
-              <span>Target <span className="num text-bull">{formatPrice(t.target)}</span></span>
-              <span>Size <span className="num text-text">{formatUsd(t.sizeUsd)}</span></span>
-              <span>Leverage <span className="num text-text">{t.leverage}X</span></span>
-              <span>Signal <span className="num text-text">{t.signalScore}</span></span>
+              <span>入场 <span className="num text-text">{formatPrice(t.entry)}</span></span>
+              <span>出场 <span className="num text-text">{formatPrice(t.exit)}</span></span>
+              <span>止损 <span className="num text-bear">{formatPrice(t.stop)}</span></span>
+              <span>目标 <span className="num text-bull">{formatPrice(t.target)}</span></span>
+              <span>仓位 <span className="num text-text">{formatUsd(t.sizeUsd)}</span></span>
+              <span>杠杆 <span className="num text-text">{t.leverage}X</span></span>
+              <span>信号 <span className="num text-text">{t.signalScore}</span></span>
             </div>
 
             <div className="mt-2 border-t border-border pt-2 text-xs leading-relaxed text-muted">
@@ -187,34 +187,34 @@ function TradeForm({
         <button onClick={onCancel} className="rounded-md p-1 text-muted hover:bg-white/5 hover:text-text"><X className="h-4 w-4" /></button>
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Field label="Symbol"><input value={symbol} onChange={e => setSymbol(e.target.value)} className={inpCls} /></Field>
-        <Field label="Side">
+        <Field label="币种"><input value={symbol} onChange={e => setSymbol(e.target.value)} className={inpCls} /></Field>
+        <Field label="方向">
           <select value={side} onChange={e => setSide(e.target.value as Side)} className={inpCls}>
-            <option value="LONG">LONG</option><option value="SHORT">SHORT</option>
+            <option value="LONG">做多</option><option value="SHORT">做空</option>
           </select>
         </Field>
-        <Field label="Entry"><input value={entry} onChange={e => setEntry(e.target.value)} className={inpCls} /></Field>
-        <Field label="Exit"><input value={exit} onChange={e => setExit(e.target.value)} className={inpCls} /></Field>
-        <Field label="Stop"><input value={stop} onChange={e => setStop(e.target.value)} className={inpCls} /></Field>
-        <Field label="Target"><input value={target} onChange={e => setTarget(e.target.value)} className={inpCls} /></Field>
-        <Field label="Size (USD)"><input value={sizeUsd} onChange={e => setSizeUsd(e.target.value)} className={inpCls} /></Field>
-        <Field label="Leverage"><input value={leverage} onChange={e => setLeverage(e.target.value)} className={inpCls} /></Field>
-        <Field label="Regime">
+        <Field label="入场价"><input value={entry} onChange={e => setEntry(e.target.value)} className={inpCls} /></Field>
+        <Field label="出场价"><input value={exit} onChange={e => setExit(e.target.value)} className={inpCls} /></Field>
+        <Field label="止损"><input value={stop} onChange={e => setStop(e.target.value)} className={inpCls} /></Field>
+        <Field label="目标"><input value={target} onChange={e => setTarget(e.target.value)} className={inpCls} /></Field>
+        <Field label="仓位 (USD)"><input value={sizeUsd} onChange={e => setSizeUsd(e.target.value)} className={inpCls} /></Field>
+        <Field label="杠杆"><input value={leverage} onChange={e => setLeverage(e.target.value)} className={inpCls} /></Field>
+        <Field label="市场状态">
           <select value={regime} onChange={e => setRegime(e.target.value as RegimeState)} className={inpCls}>
-            <option value="BULL_TREND">Bull</option><option value="BEAR_TREND">Bear</option><option value="RANGE">Range</option><option value="TRANSITION">Transition</option><option value="CRASH_RISK">Crash Risk</option>
+            <option value="BULL_TREND">多头趋势</option><option value="BEAR_TREND">空头趋势</option><option value="RANGE">震荡区间</option><option value="TRANSITION">趋势转换</option><option value="CRASH_RISK">崩盘风险</option>
           </select>
         </Field>
-        <Field label="Setup">
+        <Field label="形态">
           <select value={setup} onChange={e => setSetup(e.target.value as SetupType)} className={inpCls}>
-            <option value="PULLBACK">Pullback</option><option value="BREAKOUT">Breakout</option><option value="RE_ENTRY">Re-entry</option><option value="RESTART">Restart</option><option value="RANGE">Range</option><option value="NONE">None</option>
+            <option value="PULLBACK">回踩</option><option value="BREAKOUT">突破</option><option value="RE_ENTRY">二次入场</option><option value="RESTART">重启</option><option value="RANGE">区间</option><option value="NONE">无</option>
           </select>
         </Field>
-        <Field label="Mistake">
+        <Field label="错误类型">
           <select value={mistake} onChange={e => setMistake(e.target.value as MistakeType)} className={inpCls}>
             {MISTAKES.map(m => <option key={m.v} value={m.v}>{m.label}</option>)}
           </select>
         </Field>
-        <Field label="Tags (逗号分隔)"><input value={tags} onChange={e => setTags(e.target.value)} className={inpCls} /></Field>
+        <Field label="标签（逗号分隔）"><input value={tags} onChange={e => setTags(e.target.value)} className={inpCls} /></Field>
         <Field label="入场理由" full><input value={entryReason} onChange={e => setEntryReason(e.target.value)} className={inpCls} /></Field>
         <Field label="出场理由" full><input value={exitReason} onChange={e => setExitReason(e.target.value)} className={inpCls} /></Field>
       </div>

@@ -11,7 +11,7 @@ export default function SettingsPage() {
 
   return (
     <PageContainer>
-      <PageTitle title="Settings" subtitle="风控参数 / 交易偏好 / Watchlist" right={<Badge tone="warn" dot>SIMULATION MODE</Badge>} />
+      <PageTitle title="设置" subtitle="风控参数 / 交易偏好 / 自选列表" right={<Badge tone="warn" dot>模拟模式</Badge>} />
       <SettingsPanel />
     </PageContainer>
   );

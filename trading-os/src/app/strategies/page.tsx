@@ -12,7 +12,7 @@ export default function StrategiesPage() {
 
   return (
     <PageContainer>
-      <PageTitle title="Strategies" subtitle="策略绩效：按市场状态拆分，找出有效环境" right={<Badge tone="warn" dot>SIMULATION MODE</Badge>} />
+      <PageTitle title="策略" subtitle="策略绩效：按市场状态拆分，找出有效环境" right={<Badge tone="warn" dot>模拟模式</Badge>} />
       <div className="space-y-6">
         <StrategyPerformanceList />
         <SystemHealthCard />

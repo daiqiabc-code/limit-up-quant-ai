@@ -4,8 +4,8 @@ export const DEFAULT_SETTINGS: Settings = {
   riskPerTrade: 1, // 单笔风险 1%
   maxPortfolioHeat: 6,
   defaultLeverage: 5,
-  exchange: "OKX",
-  dataProvider: "MOCK",
+  exchange: "BINANCE",
+  dataProvider: "BINANCE",
   preferredTimeframe: "4H",
   signalThreshold: 70,
   watchlist: ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "DOGEUSDT", "XRPUSDT", "SUIUSDT", "LINKUSDT", "AVAXUSDT", "AAVEUSDT"],

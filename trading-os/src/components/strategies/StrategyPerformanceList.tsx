@@ -17,19 +17,19 @@ export function StrategyPerformanceList() {
           <div className="mb-3 flex items-center justify-between">
             <div>
               <h3 className="text-sm font-semibold text-text">{s.name}</h3>
-              <p className="text-xs text-muted">{s.symbol.replace("USDT", "")} · {s.trades} trades</p>
+              <p className="text-xs text-muted">{s.symbol.replace("USDT", "")} · {s.trades} 笔</p>
             </div>
             <Badge tone={s.profitFactor >= 1.5 ? "bull" : s.profitFactor >= 1 ? "warn" : "bear"}>
-              PF {s.profitFactor.toFixed(2)}
+              盈亏比 {s.profitFactor.toFixed(2)}
             </Badge>
           </div>
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-            <Mini label="Win Rate" value={`${s.winRate}%`} />
-            <Mini label="Avg Winner" value={`+${s.avgWinner}R`} tone="bull" />
-            <Mini label="Avg Loser" value={`${s.avgLoser}R`} tone="bear" />
-            <Mini label="Expectancy" value={`+${s.expectancy}R`} />
-            <Mini label="Max DD" value={`${s.maxDrawdown}%`} />
+            <Mini label="胜率" value={`${s.winRate}%`} />
+            <Mini label="平均盈利" value={`+${s.avgWinner}R`} tone="bull" />
+            <Mini label="平均亏损" value={`${s.avgLoser}R`} tone="bear" />
+            <Mini label="期望" value={`+${s.expectancy}R`} />
+            <Mini label="最大回撤" value={`${s.maxDrawdown}%`} />
           </div>
 
           <div className="mt-3 border-t border-border pt-3">

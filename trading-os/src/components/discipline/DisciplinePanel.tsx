@@ -16,7 +16,7 @@ export function DisciplinePanel() {
       <Card>
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-semibold text-text">Trading Discipline Score</h3>
+            <h3 className="text-sm font-semibold text-text">交易纪律评分</h3>
             <p className="text-xs text-muted">近 7 日纪律均分</p>
           </div>
           <div className="flex items-center gap-2">
@@ -31,18 +31,18 @@ export function DisciplinePanel() {
       <Card>
         <div className="mb-3">
           <h3 className="text-sm font-semibold text-text">每日记录</h3>
-          <p className="text-xs text-muted">是否遵循系统 / 过度交易 / 违反风控 / FOMO 入场</p>
+          <p className="text-xs text-muted">是否遵循系统 / 过度交易 / 违反风控 / 冲动入场</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border text-left text-[11px] uppercase tracking-wide text-muted">
-                <th className="px-3 py-2 font-medium">Date</th>
-                <th className="px-3 py-2 font-medium">Follow System</th>
-                <th className="px-3 py-2 font-medium">Overtrade</th>
-                <th className="px-3 py-2 font-medium">Risk Violation</th>
-                <th className="px-3 py-2 font-medium">FOMO</th>
-                <th className="px-3 py-2 font-medium">Score</th>
+                <th className="px-3 py-2 font-medium">日期</th>
+                <th className="px-3 py-2 font-medium">遵循系统</th>
+                <th className="px-3 py-2 font-medium">过度交易</th>
+                <th className="px-3 py-2 font-medium">违反风控</th>
+                <th className="px-3 py-2 font-medium">冲动入场</th>
+                <th className="px-3 py-2 font-medium">评分</th>
               </tr>
             </thead>
             <tbody>
@@ -72,7 +72,7 @@ function Cell({ value }: { value: boolean }) {
   return (
     <td className="px-3 py-2.5">
       <span className={cn("text-xs font-semibold", value ? "text-bull" : "text-bear")}>
-        {value ? "YES" : "NO"}
+        {value ? "是" : "否"}
       </span>
     </td>
   );

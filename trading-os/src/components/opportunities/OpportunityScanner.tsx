@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useTradingStore, buildOpportunities } from "@/store/tradingStore";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { ACTION_LABEL, actionTone, riskTone, RISK_LABEL } from "@/lib/labels";
+import { ACTION_LABEL, actionTone, riskTone, RISK_LABEL, SETUP_LABEL } from "@/lib/labels";
 import { formatPrice, formatPct, cn } from "@/lib/utils";
 import { Search, ArrowUpDown, ArrowUp, ArrowDown, ChevronRight } from "lucide-react";
 import type { Opportunity } from "@/types";
@@ -52,7 +52,7 @@ export function OpportunityScanner() {
     <Card>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold text-text">Market Opportunities</h3>
+          <h3 className="text-sm font-semibold text-text">市场机会</h3>
           <Badge tone="neutral">{rows.length}</Badge>
         </div>
         <div className="flex items-center gap-2">
@@ -71,10 +71,10 @@ export function OpportunityScanner() {
             className="h-8 rounded-md border border-border bg-surface px-2 text-xs text-text focus:border-info focus:outline-none"
           >
             <option value="ALL">全部趋势</option>
-            <option value="BULL">Bull</option>
-            <option value="BEAR">Bear</option>
-            <option value="RANGE">Range</option>
-            <option value="TRANSITION">Transition</option>
+            <option value="BULL">多头</option>
+            <option value="BEAR">空头</option>
+            <option value="RANGE">震荡</option>
+            <option value="TRANSITION">转换</option>
           </select>
         </div>
       </div>
@@ -83,13 +83,13 @@ export function OpportunityScanner() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border text-left text-[11px] uppercase tracking-wide text-muted">
-              <SortTh label="Coin" onClick={() => toggleSort("price")} active={sortKey === "price"} desc={desc} />
-              <SortTh label="Score" onClick={() => toggleSort("score")} active={sortKey === "score"} desc={desc} />
-              <th className="px-2 py-2 font-medium">Trend</th>
-              <th className="px-2 py-2 font-medium">Setup</th>
-              <SortTh label="R:R" onClick={() => toggleSort("riskReward")} active={sortKey === "riskReward"} desc={desc} />
-              <th className="px-2 py-2 font-medium">Risk</th>
-              <th className="px-2 py-2 font-medium">Action</th>
+              <SortTh label="币种" onClick={() => toggleSort("price")} active={sortKey === "price"} desc={desc} />
+              <SortTh label="评分" onClick={() => toggleSort("score")} active={sortKey === "score"} desc={desc} />
+              <th className="px-2 py-2 font-medium">趋势</th>
+              <th className="px-2 py-2 font-medium">形态</th>
+              <SortTh label="盈亏比" onClick={() => toggleSort("riskReward")} active={sortKey === "riskReward"} desc={desc} />
+              <th className="px-2 py-2 font-medium">风险</th>
+              <th className="px-2 py-2 font-medium">操作</th>
               <th className="px-2 py-2" />
             </tr>
           </thead>
@@ -153,7 +153,7 @@ function Row({ o, onClick }: { o: Opportunity; onClick: () => void }) {
       <td className="px-2 py-2.5">
         <TrendPill trend={o.trend} />
       </td>
-      <td className="px-2 py-2.5 text-xs text-text">{o.setup}</td>
+      <td className="px-2 py-2.5 text-xs text-text">{SETUP_LABEL[o.setup]}</td>
       <td className="num px-2 py-2.5 text-text">{o.riskReward.toFixed(1)}</td>
       <td className="px-2 py-2.5">
         <Badge tone={riskTone(o.risk)}>{RISK_LABEL[o.risk]}</Badge>

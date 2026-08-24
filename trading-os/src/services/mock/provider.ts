@@ -175,7 +175,7 @@ export class MockExchangeProvider implements ExchangeProvider {
       adx,
       volume: state === "BULL_TREND" ? "EXPANDING" : state === "BEAR_TREND" ? "EXPANDING" : "NORMAL",
       volatility: e.meta.volatility > 0.05 ? "HIGH" : e.meta.volatility > 0.04 ? "NORMAL" : "NORMAL",
-      structure: state === "BULL_TREND" ? "HH / HL" : state === "BEAR_TREND" ? "LH / LL" : "Range",
+      structure: state === "BULL_TREND" ? "高点抬高" : state === "BEAR_TREND" ? "低点降低" : "区间震荡",
       updatedAt: Date.now(),
     };
   }
@@ -249,7 +249,7 @@ export class MockExchangeProvider implements ExchangeProvider {
     return {
       exchange: "OKX",
       id: "acct-okx-0001",
-      name: "Main Account",
+      name: "主账户",
       status: "CONNECTED",
       mode: "PAPER",
       equity: risk.accountEquity,
@@ -367,7 +367,7 @@ export class MockExchangeProvider implements ExchangeProvider {
 
   private reasonFor(setup: SetupType, state: RegimeState, score: number): string {
     const parts: string[] = [];
-    parts.push(state === "BULL_TREND" ? "HTF 多头对齐" : state === "BEAR_TREND" ? "空头趋势压制" : "震荡区间");
+    parts.push(state === "BULL_TREND" ? "大周期多头对齐" : state === "BEAR_TREND" ? "空头趋势压制" : "震荡区间");
     if (setup === "PULLBACK") parts.push("回踩关键支撑后重启");
     else if (setup === "BREAKOUT") parts.push("突破旗形结构");
     else if (setup === "RE_ENTRY") parts.push("二次入场确认");
@@ -512,21 +512,21 @@ export class MockExchangeProvider implements ExchangeProvider {
   private alerts(): Alert[] {
     const btc = this.engineOf("BTCUSDT").price;
     return [
-      { id: "alt-1", type: "PRICE", message: `BTC > ${Math.round(btc * 1.15).toLocaleString()}`, status: "ACTIVE", severity: "INFO", createdAt: Date.now() - 3600e3 },
-      { id: "alt-2", type: "SIGNAL", message: "BTC Signal > 90", status: "ACTIVE", severity: "INFO", createdAt: Date.now() - 7200e3 },
-      { id: "alt-3", type: "RISK", message: "Portfolio Heat > 4%", status: "ACTIVE", severity: "CAUTION", createdAt: Date.now() - 10800e3 },
-      { id: "alt-4", type: "SYSTEM", message: "Strategy PF < 1", status: "ACTIVE", severity: "WARNING", createdAt: Date.now() - 14400e3 },
-      { id: "alt-5", type: "PRICE", message: "BTC breaks MA80", status: "TRIGGERED", severity: "INFO", createdAt: Date.now() - 86400e3 },
+      { id: "alt-1", type: "PRICE", message: `BTC 价格突破 ${Math.round(btc * 1.15).toLocaleString()}`, status: "ACTIVE", severity: "INFO", createdAt: Date.now() - 3600e3 },
+      { id: "alt-2", type: "SIGNAL", message: "BTC 信号 > 90", status: "ACTIVE", severity: "INFO", createdAt: Date.now() - 7200e3 },
+      { id: "alt-3", type: "RISK", message: "组合热度 > 4%", status: "ACTIVE", severity: "CAUTION", createdAt: Date.now() - 10800e3 },
+      { id: "alt-4", type: "SYSTEM", message: "策略盈利因子 < 1", status: "ACTIVE", severity: "WARNING", createdAt: Date.now() - 14400e3 },
+      { id: "alt-5", type: "PRICE", message: "BTC 跌破 MA80", status: "TRIGGERED", severity: "INFO", createdAt: Date.now() - 86400e3 },
     ];
   }
 
   private marketEvents(): MarketEvent[] {
     return [
-      { id: "evt-1", title: "BTC ETF Net Flow", impact: "BULLISH", confidence: 78, source: "ETF Aggregator", occurredAt: Date.now() - 3600e3 },
-      { id: "evt-2", title: "ETH Whale Activity", impact: "BULLISH", confidence: 62, source: "On-chain", occurredAt: Date.now() - 7200e3 },
-      { id: "evt-3", title: "SOL Open Interest Spike", impact: "NEUTRAL", confidence: 55, source: "Derivatives", occurredAt: Date.now() - 10800e3 },
-      { id: "evt-4", title: "Fed Macro Event", impact: "BEARISH", confidence: 70, source: "Macro Calendar", occurredAt: Date.now() - 14400e3 },
-      { id: "evt-5", title: "BTC Funding Extreme", impact: "BEARISH", confidence: 81, source: "Funding", occurredAt: Date.now() - 18000e3 },
+      { id: "evt-1", title: "BTC ETF 净流入", impact: "BULLISH", confidence: 78, source: "ETF 聚合数据", occurredAt: Date.now() - 3600e3 },
+      { id: "evt-2", title: "ETH 巨鲸活动", impact: "BULLISH", confidence: 62, source: "链上数据", occurredAt: Date.now() - 7200e3 },
+      { id: "evt-3", title: "SOL 持仓量激增", impact: "NEUTRAL", confidence: 55, source: "衍生品数据", occurredAt: Date.now() - 10800e3 },
+      { id: "evt-4", title: "美联储宏观事件", impact: "BEARISH", confidence: 70, source: "宏观日历", occurredAt: Date.now() - 14400e3 },
+      { id: "evt-5", title: "BTC 资金费率极端", impact: "BEARISH", confidence: 81, source: "资金费率", occurredAt: Date.now() - 18000e3 },
     ];
   }
 
@@ -555,7 +555,7 @@ export class MockExchangeProvider implements ExchangeProvider {
     return [
       {
         id: "strat-1",
-        name: "BTC Pullback Strategy",
+        name: "BTC 回踩策略",
         symbol: "BTCUSDT",
         trades: 87,
         winRate: 63.2,
@@ -565,11 +565,11 @@ export class MockExchangeProvider implements ExchangeProvider {
         expectancy: 0.71,
         maxDrawdown: 8.4,
         byRegime: byRegime(2.31, 0.92, 0.61),
-        verdict: "当前策略主要在 Bull Trend 环境有效",
+        verdict: "当前策略主要在多头趋势环境有效",
       },
       {
         id: "strat-2",
-        name: "ETH Breakout Strategy",
+        name: "ETH 突破策略",
         symbol: "ETHUSDT",
         trades: 54,
         winRate: 51.9,
@@ -583,7 +583,7 @@ export class MockExchangeProvider implements ExchangeProvider {
       },
       {
         id: "strat-3",
-        name: "SOL Momentum Strategy",
+        name: "SOL 动量策略",
         symbol: "SOLUSDT",
         trades: 46,
         winRate: 58.7,
@@ -593,7 +593,7 @@ export class MockExchangeProvider implements ExchangeProvider {
         expectancy: 0.66,
         maxDrawdown: 9.8,
         byRegime: byRegime(2.15, 0.82, 0.44),
-        verdict: "动量策略高度依赖 Bull Trend",
+        verdict: "动量策略高度依赖多头趋势",
       },
     ];
   }
