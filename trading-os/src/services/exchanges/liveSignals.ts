@@ -93,8 +93,31 @@ export function computeLiveSignal(symbol: string, asset: Asset, candles: Candle[
   const volumeScore = clamp(Math.round(vRatio > 1.2 ? 13 : vRatio > 1 ? 10 : vRatio > 0.7 ? 8 : 5), 0, 15);
   const htfScore = clamp(Math.round((bull || bear) ? 8 : 5), 0, 10);
   const setupScore = clamp(Math.round((bull && price <= ma20 * 1.02 && price >= ma20 * 0.995) ? 8 : bull ? 6 : bear ? 3 : 5), 0, 10);
-  const rr = clamp(2 + (ret32 > 0 ? ret32 * 30 : ret32 * 10), 1.2, 4);
-  const rrScore = clamp(Math.round(rr >= 3 ? 5 : rr >= 2 ? 4 : 2), 0, 5);
+  // ---------- 基于真实 K 线结构位计算盈亏比 ----------
+  // 止损 = 2x ATR，止盈目标 = 最近阻力位（前高）/ 支撑位（前低），
+  // 不再用趋势收益乘数放大，避免盈亏比普遍冲顶 4、目标价脱离现实。
+  const stopPct = atrPct * 2; // 止损距离（百分比）
+  const entry = round(price);
+  const stop = round(bull ? price * (1 - stopPct) : price * (1 + stopPct));
+
+  // 找最近结构位：20 根 K 线内的最高/最低点（排除当前 K 线）
+  const lookback = Math.min(candles.length - 1, 20);
+  const recentBars = candles.slice(candles.length - 1 - lookback, candles.length - 1);
+  const recentHigh = Math.max(...recentBars.map((c) => c.high));
+  const recentLow = Math.min(...recentBars.map((c) => c.low));
+
+  // 目标 = 结构位留一定缓冲（0.3%），避免刚好摸到
+  const targetPrice = bull
+    ? round(recentHigh * 0.997) // 多头目标：前高下方 0.3%
+    : round(recentLow * 1.003);  // 空头目标：前低上方 0.3%
+
+  // 盈亏比 = 目标价距离 / 止损距离
+  const targetDist = bull ? (targetPrice - price) / price : (price - targetPrice) / price;
+  const rr = stopPct > 0.001 ? clamp(targetDist / stopPct, 0.8, 4.5) : 1.5;
+  const riskReward = round(rr, 1);
+
+  // 盈亏比评分（基于真实结构位，阈值更合理）
+  const rrScore = clamp(Math.round(rr >= 2.5 ? 5 : rr >= 1.8 ? 4 : rr >= 1.3 ? 3 : 2), 0, 5);
 
   const breakdown: SignalBreakdown = {
     trend: trendScore,
@@ -132,10 +155,7 @@ export function computeLiveSignal(symbol: string, asset: Asset, candles: Candle[
   const stage: SetupStage =
     score >= 90 ? "ENTRY" : score >= 80 ? "RESTART" : score >= 65 ? (trend === "BULL" ? "PULLBACK" : "WAIT") : setup === "BREAKOUT" ? "BREAKOUT" : "WAIT";
 
-  const riskReward = round(rr, 1);
-  const entry = round(price);
-  const stop = round(bull ? price * (1 - atrPct * 2) : price * (1 + atrPct * 2));
-  const target = round(bull ? price * (1 + atrPct * 2 * rr) : price * (1 - atrPct * 2 * rr));
+  const target = targetPrice;
 
   return {
     symbol,
