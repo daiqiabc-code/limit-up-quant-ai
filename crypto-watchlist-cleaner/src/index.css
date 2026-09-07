@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: #070b12;
+  color: #cbd5e1;
+  font-family: "Inter", "PingFang SC", "Microsoft YaHei", -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 数字等宽 */
+.tnum {
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #1b2536;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #243044;
+}
+
+/* 表格基础 */
+.quant-table th {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: #0d1420;
+  white-space: nowrap;
+}
+
+/* 自右向左的 attention 徽章 */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.live-dot {
+  animation: pulse-dot 1.8s ease-in-out infinite;
+}
