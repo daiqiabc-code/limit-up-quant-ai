@@ -54,7 +54,7 @@ npm run preview
 | `VITE_DATA_SOURCE` | 数据源：`mock` / `coingecko` / `binance` / `okx` / `dexscreener` | `mock` |
 | `VITE_COINGECKO_API_KEY` | CoinGecko API Key | 空 |
 | `VITE_CMC_API_KEY` | CoinMarketCap API Key | 空 |
-| `VITE_BINANCE_API_URL` | Binance API 地址 | `https://api.binance.com` |
+| `VITE_BINANCE_API_URL` | Binance API 地址 | `https://data-api.binance.vision` |
 | `VITE_DEXSCREENER_API_URL` | DexScreener API 地址 | `https://api.dexscreener.com` |
 | `VITE_AI_API_URL` / `VITE_AI_API_KEY` | AI 分析接口（缺省用本地规则引擎） | 空 |
 | `VITE_REFRESH_INTERVAL_SECONDS` | 刷新间隔（秒） | `300` |
