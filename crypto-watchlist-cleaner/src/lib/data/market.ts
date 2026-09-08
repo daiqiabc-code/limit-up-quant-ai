@@ -4,7 +4,16 @@
 import { loadRawTokens } from "./providers";
 import { scoreAll } from "../scoring";
 import { clamp, round } from "../scoring/helpers";
+import { generateAiAlerts } from "../ai/analyze";
 import type { ScoredCoin, MarketSnapshot, Alert, Grade } from "../types";
+
+/** 预警级别排序权重：critical > recovery > warn > info */
+const LEVEL_ORDER: Record<Alert["level"], number> = {
+  critical: 0,
+  recovery: 1,
+  warn: 2,
+  info: 3,
+};
 
 export interface MarketData {
   coins: ScoredCoin[];
@@ -122,13 +131,7 @@ function buildAlerts(coins: ScoredCoin[]): Alert[] {
   }
 
   // 按级别排序：critical > recovery > warn > info
-  const order: Record<Alert["level"], number> = {
-    critical: 0,
-    recovery: 1,
-    warn: 2,
-    info: 3,
-  };
-  alerts.sort((a, b) => order[a.level] - order[b.level]);
+  alerts.sort((a, b) => LEVEL_ORDER[a.level] - LEVEL_ORDER[b.level]);
   return alerts;
 }
 
@@ -136,6 +139,17 @@ export async function loadMarketData(): Promise<MarketData> {
   const { tokens, isDemo, dataSource, updatedAt } = await loadRawTokens();
   const coins = scoreAll(tokens);
   const snapshot = buildSnapshot(coins, isDemo, dataSource, updatedAt);
-  const alerts = buildAlerts(coins);
+  const ruleAlerts = buildAlerts(coins);
+
+  // AI 智能预警（可选；未配置/失败时静默返回空数组）
+  const aiAlerts = await generateAiAlerts(snapshot, coins);
+
+  // 合并：同级内规则预警在前、AI 预警在后
+  const alerts = [...ruleAlerts, ...aiAlerts].sort(
+    (a, b) =>
+      LEVEL_ORDER[a.level] - LEVEL_ORDER[b.level] ||
+      (a.ai ? 1 : 0) - (b.ai ? 1 : 0),
+  );
+
   return { coins, snapshot, alerts };
 }

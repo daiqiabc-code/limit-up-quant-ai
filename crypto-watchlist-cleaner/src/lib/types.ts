@@ -208,6 +208,8 @@ export interface Alert {
   level: "info" | "warn" | "critical" | "recovery";
   message: string;
   time: string; // ISO
+  /** 是否为 AI 生成（规则预警无此字段） */
+  ai?: boolean;
 }
 
 /** 完整评分结果（评分层输出） */

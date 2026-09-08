@@ -1,10 +1,12 @@
 // =============================================================
 // 币种详情 —— AI 摘要 + 因子拆解 + Meme/Robinhood + 操作
 // =============================================================
-import { useMemo, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Star, Trash2, Undo2, X } from "lucide-react";
 import { useCryptoStore, WATCH_CATEGORIES } from "../store";
+import { analyzeCoin } from "../lib/ai/analyze";
+import { isAiConfigured } from "../lib/ai/client";
 import { Panel, Badge, ScoreBar } from "../components/ui";
 import { GradeBadge, TrendBadge, MoneyFlowBadge } from "../components/GradeBadge";
 import { fmtPrice, fmtCompact, fmtPct, fmtScore, fmtTime, colorBy } from "../lib/utils/format";
@@ -127,6 +129,18 @@ function M({ label, v }: { label: string; v: ReactNode }) {
 
 function AI({ coin }: { coin: ScoredCoin }) {
   const s = coin.summary;
+  const aiReady = isAiConfigured();
+  const [deep, setDeep] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const runDeep = async () => {
+    if (busy) return;
+    setBusy(true);
+    const text = await analyzeCoin(coin);
+    setDeep(text || "AI 分析暂不可用，请检查 VITE_AI_API_URL 配置。");
+    setBusy(false);
+  };
+
   return (
     <Panel
       title="AI 分析"
@@ -151,6 +165,26 @@ function AI({ coin }: { coin: ScoredCoin }) {
           <S label="最大风险" v={s.risk} />
           <S label="是否值得自选" v={s.worthAdding ? "是" : "否"} />
         </div>
+      </div>
+
+      <div className="mt-3 border-t border-terminal-border/60 pt-3">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <span className="text-[11px] uppercase tracking-wide text-violet-400">AI 深度分析</span>
+          <button
+            onClick={runDeep}
+            disabled={busy || !aiReady}
+            className="rounded border border-violet-500/40 bg-violet-500/10 px-2 py-1 text-[11px] text-violet-300 transition-colors hover:bg-violet-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {busy ? "分析中…" : "生成深度分析"}
+          </button>
+        </div>
+        {deep ? (
+          <p className="whitespace-pre-wrap text-[12px] leading-relaxed text-terminal-fg">{deep}</p>
+        ) : aiReady ? (
+          <p className="text-[12px] text-terminal-muted">点击「生成深度分析」，让 LLM 结合实时指标给出结论。</p>
+        ) : (
+          <p className="text-[12px] text-terminal-muted">未配置 VITE_AI_API_URL，当前为规则引擎摘要。</p>
+        )}
       </div>
     </Panel>
   );

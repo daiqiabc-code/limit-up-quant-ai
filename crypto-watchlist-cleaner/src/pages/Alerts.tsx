@@ -52,6 +52,7 @@ export default function Alerts() {
                 <div key={a.id} className="flex items-center justify-between gap-3 py-2">
                   <div className="flex min-w-0 items-center gap-2">
                     <Badge tone={meta.tone}>{a.symbol}</Badge>
+                    {a.ai && <Badge tone="violet">AI</Badge>}
                     <span className="truncate text-[13px] text-terminal-fg">{a.message}</span>
                   </div>
                   <span className="shrink-0 text-[11px] tabular-nums text-terminal-muted">{fmtTime(a.time)}</span>
