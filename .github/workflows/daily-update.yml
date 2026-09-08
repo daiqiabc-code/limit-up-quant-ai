@@ -72,6 +72,17 @@ jobs:
           rm -rf dist   # 先清空 dist 防陈旧文件残留
           npx vite build
 
+      - name: Build crypto app
+        run: |
+          cd crypto-watchlist-cleaner
+          npm install
+          npm run build
+
+      - name: Merge crypto app into pages (subpath /crypto/)
+        run: |
+          mkdir -p frontend/dist/crypto
+          cp -r crypto-watchlist-cleaner/dist/* frontend/dist/crypto/
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
