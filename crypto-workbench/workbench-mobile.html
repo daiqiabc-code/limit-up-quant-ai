@@ -255,7 +255,7 @@
 
   /* ---------- bottom nav ---------- */
   .nav { position: fixed; left: 50%; transform: translateX(-50%); bottom: 0; width: 100%; max-width: 480px; height: var(--nav-h);
-    background: rgba(252,251,248,.92); backdrop-filter: blur(14px); border-top: 1px solid var(--border);
+    background: color-mix(in srgb, var(--surface-card) 92%, transparent); backdrop-filter: blur(14px); border-top: 1px solid var(--border);
     display: grid; grid-template-columns: repeat(3,1fr); align-items: center; z-index: 30; padding-bottom: env(safe-area-inset-bottom); }
   .nav .n { display:flex; flex-direction:column; align-items:center; gap: 4px; cursor:pointer; color: var(--text-tertiary); font-size: 10px; font-weight: 500; }
   .nav .n.active { color: var(--accent); font-weight: 700; }
@@ -372,7 +372,7 @@
 <div class="app">
   <div class="topbar">
     <button class="menu-btn" id="btn-menu"></button>
-    <div class="title" id="topTitle">我的工作台<small id="topSub">Personal Workbench</small></div>
+    <div class="title" id="topTitle">金狗雷达<small id="topSub">Alpha Hunter · 一级市场叙事驱动</small></div>
     <span class="date-chip" id="dateChip"></span>
   </div>
   <div id="screen"></div>
@@ -392,7 +392,7 @@
     <button class="dclose" id="drawerClose"></button>
     <div class="brand" id="drawerBrand" title="点击更换头像"><img src="assets/avatar.jpg" alt="头像" id="brandImg"/><span class="brand-cam" id="brandCam"></span></div>
     <input type="file" id="avatarInput" accept="image/*" hidden/>
-    <div><h2 id="drawerName">我的工作台</h2><p id="drawerSlogan">Personal Workbench</p></div>
+    <div><h2 id="drawerName">金狗雷达</h2><p id="drawerSlogan">Alpha Hunter · 一级市场叙事驱动</p></div>
   </div>
   <div class="dsep"></div>
   <div id="drawerList"></div>
@@ -406,10 +406,10 @@
    modules 里每个模块 = 一个功能页；type 决定它长什么样、记什么字段。
    支持的 type：
      todo     今日计划/待办（勾选 + 优先级）
-     checkin  习惯打卡（连续天数，每天清零）
+     checkin  每日纪律（连续天数，每天清零）
      progress 长期计划（进度条：当前/目标）
      finance  记账（收入/支出 + 分类 + 金额）
-     note     内容记录/日记（标题 + 正文 + 心情标签）
+     note     内容记录/日记（标题 + 正文 + 标签）
    图标用 icon 字段（取自下方 ICONS 图标库，全部为单色线性图标）。
    ============================================================ */
 const CONFIG = {
@@ -438,7 +438,7 @@ const CONFIG = {
     { key: "watchlist", label: "金狗储备", icon: "flame", color: "var(--module-2)",
       calc: d => { const it=d.watchlist||[]; const hot=it.filter(x=>x.pinned).length; return { value: it.length?Math.min(100,Math.round(it.length/10*100)):0, sub: `${hot}/${it.length} 标的` }; } },
     { key: "narrative", label: "叙事热度", icon: "bolt", color: "var(--module-3)",
-      calc: d => { const it=d.narrative||[]; const active=it.filter(x=>x.stage==="爆发中"||x.stage==="发酵中").length; return { value: it.length?Math.round(active/it.length*100):0, sub: `${active}/${it.length} 活跃` }; } },
+      calc: d => { const it=d.narrative||[]; const active=it.filter(x=>x.mood==="爆发中"||x.mood==="发酵中").length; return { value: it.length?Math.round(active/it.length*100):0, sub: `${active}/${it.length} 活跃` }; } },
   ],
 
   // 本周状态趋势（真实数据：读取用户填写的 __trend，7 个数字；没有就留空）
@@ -449,21 +449,21 @@ const CONFIG = {
 
   // 快速记录按钮（点了直接给对应模块新建）
   quickAdd: [
-    { label: "记金狗", icon: "flame",    module: "watchlist", tint: "#f6efe6", color: "var(--module-2)" },
-    { label: "记叙事", icon: "bolt",     module: "narrative", tint: "#eef3ec", color: "var(--module-3)" },
-    { label: "记一笔", icon: "wallet",   module: "portfolio", tint: "#f6efe8", color: "var(--module-4)" },
-    { label: "记灵感", icon: "pen",      module: "notes",     tint: "#f1eef4", color: "var(--module-5)" },
+    { label: "记金狗", icon: "flame",    module: "watchlist", tint: "color-mix(in srgb, var(--module-2) 16%, transparent)", color: "var(--module-2)" },
+    { label: "记叙事", icon: "bolt",     module: "narrative", tint: "color-mix(in srgb, var(--module-3) 16%, transparent)", color: "var(--module-3)" },
+    { label: "记一笔", icon: "wallet",   module: "portfolio", tint: "color-mix(in srgb, var(--module-4) 16%, transparent)", color: "var(--module-4)" },
+    { label: "记灵感", icon: "pen",      module: "notes",     tint: "color-mix(in srgb, var(--module-5) 16%, transparent)", color: "var(--module-5)" },
   ],
 
   // ============ 模块定义 ============
   modules: [
     {
-      key: "todo", name: "今日盯盘", icon: "list", tint: "#efeee8", color: "var(--accent)",
+      key: "todo", name: "今日盯盘", icon: "list", tint: "color-mix(in srgb, var(--accent) 15%, transparent)", color: "var(--accent)",
       type: "todo", desc: "每日必做：扫链、看KOL、复盘",
       priorities: [
-        { key: "P0", label: "紧急", color: "#f6ece9", text: "#c25d4f" },
-        { key: "P1", label: "重要", color: "#f6efe6", text: "#bd8a4e" },
-        { key: "P2", label: "常规", color: "#eef2ec", text: "#6f8f6a" },
+        { key: "P0", label: "紧急", color: "color-mix(in srgb, var(--danger) 20%, transparent)", text: "var(--danger)" },
+        { key: "P1", label: "重要", color: "color-mix(in srgb, var(--module-2) 20%, transparent)", text: "var(--module-2)" },
+        { key: "P2", label: "常规", color: "color-mix(in srgb, var(--module-1) 18%, transparent)", text: "var(--module-1)" },
       ],
       seed: [
         { id: 11, title: "扫一遍 Dexscreener 新币榜", priority: "P0", done: false, note: "重点看 Solana 和 Base 链 1h 内新池子" },
@@ -472,7 +472,7 @@ const CONFIG = {
       ],
     },
     {
-      key: "checkin", name: "每日纪律", icon: "leaf", tint: "#eef3ec", color: "var(--module-1)",
+      key: "checkin", name: "每日纪律", icon: "leaf", tint: "color-mix(in srgb, var(--module-1) 15%, transparent)", color: "var(--module-1)",
       type: "checkin", desc: "交易纪律与信息摄入打卡",
       seed: [
         { id: 21, title: "完成链上数据扫描", log: {} },
@@ -481,7 +481,7 @@ const CONFIG = {
       ],
     },
     {
-      key: "watchlist", name: "金狗储备池", icon: "flame", tint: "#f6efe6", color: "var(--module-2)",
+      key: "watchlist", name: "金狗储备池", icon: "flame", tint: "color-mix(in srgb, var(--module-2) 16%, transparent)", color: "var(--module-2)",
       type: "progress", unit: "分", desc: "追踪有暴涨潜力的早期代币",
       fields: [
         { key: "chain", label: "所在链", type: "select", options: ["Solana","Base","ETH","BSC","Arbitrum","Sui","Ton"] },
@@ -495,21 +495,20 @@ const CONFIG = {
       ],
     },
     {
-      key: "narrative", name: "叙事驱动库", icon: "bolt", tint: "#f6f0e6", color: "var(--module-3)",
+      key: "narrative", name: "叙事驱动库", icon: "bolt", tint: "color-mix(in srgb, var(--module-3) 16%, transparent)", color: "var(--module-3)",
       type: "note", desc: "收集并追踪市场叙事与热点",
       moods: ["萌芽期","发酵中","爆发中","衰退期","已证伪"],
       fields: [
-        { key: "stage", label: "叙事阶段", type: "select", options: ["萌芽期","发酵中","爆发中","衰退期","已证伪"] },
         { key: "relatedTokens", label: "关联代币", type: "text", placeholder: "用逗号分隔" },
         { key: "catalyst", label: "催化剂", type: "text", placeholder: "如 政策 / 技术突破 / 名人喊单" }
       ],
       seed: [
-        { id: 41, title: "AI Agent 自主交易", content: "AI 代理自主执行链上交易，从单纯聊天进化为行动主体。", mood: "爆发中", date: isoToday(), stage: "爆发中", relatedTokens: "ALPHA,OLAS", catalyst: "OpenAI 新模型发布" },
-        { id: 42, title: "DePIN 去中心化物理设施", content: "利用代币激励部署硬件网络，从算力到地图数据。", mood: "发酵中", date: isoToday(), stage: "发酵中", relatedTokens: "BETA,HONEY", catalyst: "Solana Breakpoint 大会" },
+        { id: 41, title: "AI Agent 自主交易", content: "AI 代理自主执行链上交易，从单纯聊天进化为行动主体。", mood: "爆发中", date: isoToday(), relatedTokens: "ALPHA,OLAS", catalyst: "OpenAI 新模型发布" },
+        { id: 42, title: "DePIN 去中心化物理设施", content: "利用代币激励部署硬件网络，从算力到地图数据。", mood: "发酵中", date: isoToday(), relatedTokens: "BETA,HONEY", catalyst: "Solana Breakpoint 大会" },
       ],
     },
     {
-      key: "portfolio", name: "仓位账本", icon: "wallet", tint: "#f6efe8", color: "var(--module-4)",
+      key: "portfolio", name: "仓位账本", icon: "wallet", tint: "color-mix(in srgb, var(--module-4) 16%, transparent)", color: "var(--module-4)",
       type: "finance", desc: "记录买入卖出与仓位管理",
       categories: ["一级买入","二级买入","空投","卖出止盈","卖出止损","gas费","其他"],
       seed: [
@@ -519,7 +518,7 @@ const CONFIG = {
       ],
     },
     {
-      key: "notes", name: "链上灵感", icon: "pen", tint: "#f1eef4", color: "var(--module-5)",
+      key: "notes", name: "链上灵感", icon: "pen", tint: "color-mix(in srgb, var(--module-5) 16%, transparent)", color: "var(--module-5)",
       type: "note", desc: "记录链上发现、KOL观点、随机想法",
       moods: ["极度看好","观望","警惕","FOMO","已错过"],
       fields: [
@@ -531,7 +530,7 @@ const CONFIG = {
       ],
     },
     {
-      key: "kol", name: "KOL 监控", icon: "user", tint: "#f6ece9", color: "var(--danger)",
+      key: "kol", name: "KOL 监控", icon: "user", tint: "color-mix(in srgb, var(--danger) 16%, transparent)", color: "var(--danger)",
       type: "note", desc: "监控关键意见领袖的动态与喊单",
       moods: ["喊单","分析","预警","段子"],
       fields: [
@@ -1004,14 +1003,14 @@ function openEditor(key, item){
       <div class="field"><label>优先级</label><div class="seg" id="f-prio">${(m.priorities||[]).map(p=>`<div class="opt ${p.key===d.priority?'on':''}" data-v="${p.key}">${p.label}</div>`).join("")}</div></div>
       <div class="field"><label>备注</label><textarea id="f-note" placeholder="补充说明">${esc(d.note||'')}</textarea></div>`;
   } else if(m.type==="checkin"){
-    fields=`<div class="field"><label>打卡项</label><input id="f-title" value="${attr(d.title)}" placeholder="例如：喝够 8 杯水"/></div>
+    fields=`<div class="field"><label>打卡项</label><input id="f-title" value="${attr(d.title)}" placeholder="例如：完成链上数据扫描"/></div>
       <p class="sub" style="margin:0">保存后可在列表点击左侧方块打卡；连续天数自动统计，每天从零开始。</p>`;
   } else if(m.type==="progress"){
-    fields=`<div class="field"><label>名称</label><input id="f-title" value="${attr(d.title)}" placeholder="书名 / 目标"/></div>
+    fields=`<div class="field"><label>名称</label><input id="f-title" value="${attr(d.title)}" placeholder="标的 / 目标"/></div>
       <div class="frow"><div class="field"><label>当前</label><input id="f-cur" type="number" value="${d.current??0}"/></div>
       <div class="field"><label>目标</label><input id="f-tgt" type="number" value="${d.target??1}"/></div>
       <div class="field"><label>单位</label><input id="f-unit" value="${attr(d.unit||m.unit||'')}"/></div></div>
-      <div class="field"><label>摘录 / 想法</label><textarea id="f-note" placeholder="随手记">${esc(d.note||'')}</textarea></div>`;
+      <div class="field"><label>备注 / 想法</label><textarea id="f-note" placeholder="随手记">${esc(d.note||'')}</textarea></div>`;
   } else if(m.type==="finance"){
     fields=`<div class="field"><label>类型</label><div class="seg" id="f-ftype">
         <div class="opt ${d.type!=='income'?'on':''}" data-v="expense">支出</div>
@@ -1022,7 +1021,7 @@ function openEditor(key, item){
       <div class="field"><label>日期</label><input id="f-date" type="date" value="${d.date||isoToday()}"/></div>`;
   } else { // note
     fields=`<div class="field"><label>标题</label><input id="f-title" value="${attr(d.title)}" placeholder="给这条起个名"/></div>
-      ${(m.moods&&m.moods.length)?`<div class="field"><label>标签 / 心情</label><div class="seg" style="flex-wrap:wrap" id="f-mood">${m.moods.map(md=>`<div class="opt ${md===d.mood?'on':''}" data-v="${attr(md)}" style="flex:0 0 auto">${md}</div>`).join("")}</div></div>`:''}
+      ${(m.moods&&m.moods.length)?`<div class="field"><label>标签 / 分类</label><div class="seg" style="flex-wrap:wrap" id="f-mood">${m.moods.map(md=>`<div class="opt ${md===d.mood?'on':''}" data-v="${attr(md)}" style="flex:0 0 auto">${md}</div>`).join("")}</div></div>`:''}
       <div class="field"><label>内容</label><textarea id="f-content" placeholder="写点什么…">${esc(d.content||'')}</textarea></div>
       <div class="field"><label>日期</label><input id="f-date" type="date" value="${d.date||isoToday()}"/></div>`;
   }

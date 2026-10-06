@@ -466,29 +466,18 @@
   .tk-name { flex:1; min-width:0; font-size:13.5px; font-weight:600; cursor:pointer; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .tk-name.done { text-decoration:line-through; color:var(--text-secondary); }
 
-  /* 番茄钟（暗色炫酷卡） */
-  .pomo { position:relative; overflow:hidden; border-radius:var(--radius-card); text-align:center;
-    background:linear-gradient(155deg,#302f2c,#1e1d1b); color:#f4f3f0; padding:22px 20px; box-shadow:var(--shadow-overlay);
-    display:flex; flex-direction:column; }
-  .pomo::before { content:""; position:absolute; width:180px; height:180px; border-radius:50%; left:50%; top:-60px; transform:translateX(-50%);
-    background:radial-gradient(circle,rgba(197,93,79,.28),transparent 70%); }
-  .pomo > * { position:relative; z-index:1; }
-  .pomo .pen { font-size:9.5px; font-weight:800; letter-spacing:.16em; opacity:.55; }
-  .pomo .pzh { font-size:13px; font-weight:800; margin-top:3px; }
-  .pomo .ring-wrap { position:relative; width:150px; height:150px; margin:14px auto 12px; }
-  .pomo .ring-wrap svg { transform:rotate(-90deg); }
-  .pomo .ptime { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; }
-  .pomo .ptime .t { font-size:32px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:.01em; }
-  .pomo .ptime .s { font-size:11px; opacity:.6; }
-  .pomo .pctl { display:flex; gap:8px; justify-content:center; margin-bottom:14px; }
-  .pomo .pctl button { border:1px solid rgba(244,243,240,.22); background:rgba(244,243,240,.08); color:#f4f3f0;
-    border-radius:9px; padding:8px 16px; font-size:13px; font-weight:700; cursor:pointer; transition:all .15s; }
-  .pomo .pctl button:hover { background:rgba(244,243,240,.16); }
-  .pomo .pctl button.primary { background:#f4f3f0; color:#232220; border-color:#f4f3f0; }
-  .pomo .pstats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
-  .pomo .pstats .ps { background:rgba(244,243,240,.06); border-radius:10px; padding:9px 4px; }
-  .pomo .pstats .pv { font-size:18px; font-weight:800; letter-spacing:-.02em; }
-  .pomo .pstats .pl { font-size:10.5px; opacity:.55; margin-top:2px; }
+  /* KOL 监控 */
+  .kol-list { display:flex; flex-direction:column; gap:9px; }
+  .kol-row { display:flex; align-items:center; gap:11px; padding:11px 12px; border-radius:var(--radius-tile);
+    background:var(--surface-nested); cursor:pointer; transition:background .15s; }
+  .kol-row:hover { background:var(--accent-muted); }
+  .kol-row .kava { width:34px; height:34px; border-radius:50%; flex:0 0 auto; display:grid; place-items:center;
+    color:var(--on-accent); font-weight:800; font-size:14px; }
+  .kol-body { flex:1; min-width:0; }
+  .kol-name { font-size:13.5px; font-weight:700; color:var(--text); }
+  .kol-desc { font-size:12px; color:var(--text-secondary); margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .kol-meta { display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex:0 0 auto; }
+  .kol-plat { font-size:11px; font-weight:700; color:var(--text-tertiary); }
 
   /* 在读好书 */
   .book-list { display:flex; flex-direction:column; gap:12px; }
@@ -526,7 +515,7 @@
     <div class="brand">
       <div class="ava" id="ava" title="点击更换头像"><img src="assets/avatar.jpg" alt="头像" id="avaImg"/><span class="cam" id="avaCam"></span></div>
       <input type="file" id="avatarInput" accept="image/*" hidden/>
-      <div><h1 id="brandName">我的工作台</h1><p id="brandSlogan">Personal Workbench</p></div>
+      <div><h1 id="brandName">金狗雷达</h1><p id="brandSlogan">Alpha Hunter · 一级市场叙事驱动</p></div>
     </div>
     <nav class="nav" id="nav"></nav>
     <div class="foot" id="foot">数据仅存在本机 · 每日更新</div>
@@ -541,10 +530,10 @@
    modules 里每个模块 = 一个功能页；type 决定它长什么样、记什么字段。
    支持的 type：
      todo     今日计划/待办（勾选 + 优先级）
-     checkin  习惯打卡（连续天数，每天清零）
+     checkin  每日纪律（连续天数，每天清零）
      progress 长期计划（进度条：当前/目标）
      finance  记账（收入/支出 + 分类 + 金额）
-     note     内容记录/日记（标题 + 正文 + 心情标签）
+     note     内容记录/日记（标题 + 正文 + 标签）
    图标用 icon 字段（取自下方 ICONS 图标库，全部为单色线性图标）。
    ============================================================ */
 const CONFIG = {
@@ -570,7 +559,7 @@ const CONFIG = {
     { key:"checkin", label:"每日纪律", icon:"leaf", color:"var(--module-1)",
       calc: d => { const it=d.checkin||[]; const t=today(); const done=it.filter(x=>x.log&&x.log[t]).length; return { value: it.length?Math.round(done/it.length*100):0, sub:`${done}/${it.length} 项` }; } },
     { key:"watchlist", label:"金狗储备", icon:"flame", color:"var(--module-2)", calc: d => { const it=d.watchlist||[]; const hot=it.filter(x=>x.pinned).length; return { value: it.length?Math.min(100,Math.round(it.length/10*100)):0, sub:`${hot}/${it.length} 标的` }; } },
-    { key:"narrative", label:"叙事热度", icon:"bolt", color:"var(--module-3)", calc: d => { const it=d.narrative||[]; const active=it.filter(x=>x.stage==="爆发中"||x.stage==="发酵中").length; return { value: it.length?Math.round(active/it.length*100):0, sub:`${active}/${it.length} 活跃` }; } },
+    { key:"narrative", label:"叙事热度", icon:"bolt", color:"var(--module-3)", calc: d => { const it=d.narrative||[]; const active=it.filter(x=>x.mood==="爆发中"||x.mood==="发酵中").length; return { value: it.length?Math.round(active/it.length*100):0, sub:`${active}/${it.length} 活跃` }; } },
   ],
 
   // 本周状态趋势（真实数据：读取用户填写的 __trend，7 个数字；没有就留空）
@@ -581,22 +570,22 @@ const CONFIG = {
 
   // 快速记录按钮（点了直接给对应模块新建）
   quickAdd: [
-    { label:"记金狗", icon:"flame",    module:"watchlist", tint:"#f6efe6", color:"var(--module-2)" },
-    { label:"记叙事", icon:"bolt",     module:"narrative", tint:"#eef3ec", color:"var(--module-3)" },
-    { label:"记一笔", icon:"wallet",   module:"portfolio", tint:"#f6efe8", color:"var(--module-4)" },
-    { label:"记灵感", icon:"pen",      module:"notes",     tint:"#f1eef4", color:"var(--module-5)" },
+    { label:"记金狗", icon:"flame",    module:"watchlist", tint:"color-mix(in srgb, var(--module-2) 16%, transparent)", color:"var(--module-2)" },
+    { label:"记叙事", icon:"bolt",     module:"narrative", tint:"color-mix(in srgb, var(--module-3) 16%, transparent)", color:"var(--module-3)" },
+    { label:"记一笔", icon:"wallet",   module:"portfolio", tint:"color-mix(in srgb, var(--module-4) 16%, transparent)", color:"var(--module-4)" },
+    { label:"记灵感", icon:"pen",      module:"notes",     tint:"color-mix(in srgb, var(--module-5) 16%, transparent)", color:"var(--module-5)" },
   ],
 
   // ============ 模块定义 ============
   modules: [
-    { key:"todo", name:"今日盯盘", icon:"list", tint:"#efeee8", color:"var(--accent)", type:"todo", desc:"每日必做：扫链、看KOL、复盘",
-      priorities:[ {key:"P0",label:"紧急",color:"#f6ece9",text:"#c25d4f"}, {key:"P1",label:"重要",color:"#f6efe6",text:"#bd8a4e"}, {key:"P2",label:"常规",color:"#eef2ec",text:"#6f8f6a"} ],
+    { key:"todo", name:"今日盯盘", icon:"list", tint:"color-mix(in srgb, var(--accent) 15%, transparent)", color:"var(--accent)", type:"todo", desc:"每日必做：扫链、看KOL、复盘",
+      priorities:[ {key:"P0",label:"紧急",color:"color-mix(in srgb, var(--danger) 20%, transparent)",text:"var(--danger)"}, {key:"P1",label:"重要",color:"color-mix(in srgb, var(--module-2) 20%, transparent)",text:"var(--module-2)"}, {key:"P2",label:"常规",color:"color-mix(in srgb, var(--module-1) 18%, transparent)",text:"var(--module-1)"} ],
       seed:[ {id:11,title:"扫一遍 Dexscreener 新币榜",priority:"P0",done:false,note:"重点看 Solana 和 Base 链 1h 内新池子"},
              {id:12,title:"检查 Twitter 关注列表异动",priority:"P1",done:false,note:"看聪明钱钱包有没有新发币"},
              {id:13,title:"复盘昨日观察标的",priority:"P2",done:true,note:"记录涨幅和失败原因"} ] },
-    { key:"checkin", name:"每日纪律", icon:"leaf", tint:"#eef3ec", color:"var(--module-1)", type:"checkin", desc:"交易纪律与信息摄入打卡",
+    { key:"checkin", name:"每日纪律", icon:"leaf", tint:"color-mix(in srgb, var(--module-1) 15%, transparent)", color:"var(--module-1)", type:"checkin", desc:"交易纪律与信息摄入打卡",
       seed:[ {id:21,title:"完成链上数据扫描",log:{}}, {id:22,title:"阅读 3 篇项目研报",log:{}}, {id:23,title:"记录今日盈亏与情绪",log:{}} ] },
-    { key:"watchlist", name:"金狗储备池", icon:"flame", tint:"#f6efe6", color:"var(--module-2)", type:"progress", unit:"分", desc:"追踪有暴涨潜力的早期代币",
+    { key:"watchlist", name:"金狗储备池", icon:"flame", tint:"color-mix(in srgb, var(--module-2) 16%, transparent)", color:"var(--module-2)", type:"progress", unit:"分", desc:"追踪有暴涨潜力的早期代币",
       fields:[
         { key:"chain", label:"所在链", type:"select", options:["Solana","Base","ETH","BSC","Arbitrum","Sui","Ton"] },
         { key:"narrativeTag", label:"关联叙事", type:"text", placeholder:"如 AI Agent / DePIN / RWA" },
@@ -605,28 +594,27 @@ const CONFIG = {
       ],
       seed:[ {id:31,title:"$ALPHA",current:65,target:100,unit:"分",note:"AI Agent 叙事，Dev 持续更新，社区活跃",chain:"Solana",narrativeTag:"AI Agent",devStatus:"公测",community:"活跃",pinned:true},
              {id:32,title:"$BETA",current:30,target:100,unit:"分",note:"DePIN 概念，早期流动性差，观察中",chain:"Base",narrativeTag:"DePIN",devStatus:"内测",community:"一般"} ] },
-    { key:"narrative", name:"叙事驱动库", icon:"bolt", tint:"#f6f0e6", color:"var(--module-3)", type:"note", desc:"收集并追踪市场叙事与热点",
+    { key:"narrative", name:"叙事驱动库", icon:"bolt", tint:"color-mix(in srgb, var(--module-3) 16%, transparent)", color:"var(--module-3)", type:"note", desc:"收集并追踪市场叙事与热点",
       moods:["萌芽期","发酵中","爆发中","衰退期","已证伪"],
       fields:[
-        { key:"stage", label:"叙事阶段", type:"select", options:["萌芽期","发酵中","爆发中","衰退期","已证伪"] },
         { key:"relatedTokens", label:"关联代币", type:"text", placeholder:"用逗号分隔" },
         { key:"catalyst", label:"催化剂", type:"text", placeholder:"如 政策 / 技术突破 / 名人喊单" }
       ],
-      seed:[ {id:41,title:"AI Agent 自主交易",content:"AI 代理自主执行链上交易，从单纯聊天进化为行动主体。",mood:"爆发中",date:isoToday(),stage:"爆发中",relatedTokens:"ALPHA,OLAS",catalyst:"OpenAI 新模型发布"},
-             {id:42,title:"DePIN 去中心化物理设施",content:"利用代币激励部署硬件网络，从算力到地图数据。",mood:"发酵中",date:isoToday(),stage:"发酵中",relatedTokens:"BETA,HONEY",catalyst:"Solana Breakpoint 大会"} ] },
-    { key:"portfolio", name:"仓位账本", icon:"wallet", tint:"#f6efe8", color:"var(--module-4)", type:"finance", desc:"记录买入卖出与仓位管理",
+      seed:[ {id:41,title:"AI Agent 自主交易",content:"AI 代理自主执行链上交易，从单纯聊天进化为行动主体。",mood:"爆发中",date:isoToday(),relatedTokens:"ALPHA,OLAS",catalyst:"OpenAI 新模型发布"},
+             {id:42,title:"DePIN 去中心化物理设施",content:"利用代币激励部署硬件网络，从算力到地图数据。",mood:"发酵中",date:isoToday(),relatedTokens:"BETA,HONEY",catalyst:"Solana Breakpoint 大会"} ] },
+    { key:"portfolio", name:"仓位账本", icon:"wallet", tint:"color-mix(in srgb, var(--module-4) 16%, transparent)", color:"var(--module-4)", type:"finance", desc:"记录买入卖出与仓位管理",
       categories:["一级买入","二级买入","空投","卖出止盈","卖出止损","gas费","其他"],
       seed:[ {id:51,title:"买入 $ALPHA",type:"expense",amount:500,category:"一级买入",date:isoToday()},
              {id:52,title:"卖出 $XYZ 止盈",type:"income",amount:1200,category:"卖出止盈",date:isoToday()},
              {id:53,title:"Gas 费",type:"expense",amount:15,category:"gas费",date:isoToday()} ] },
-    { key:"notes", name:"链上灵感", icon:"pen", tint:"#f1eef4", color:"var(--module-5)", type:"note", desc:"记录链上发现、KOL观点、随机想法",
+    { key:"notes", name:"链上灵感", icon:"pen", tint:"color-mix(in srgb, var(--module-5) 16%, transparent)", color:"var(--module-5)", type:"note", desc:"记录链上发现、KOL观点、随机想法",
       moods:["极度看好","观望","警惕","FOMO","已错过"],
       fields:[
         { key:"source", label:"信息来源", type:"text", placeholder:"Twitter / Telegram / 链上数据" },
         { key:"confidence", label:"置信度", type:"select", options:["低","中","高","极高"] }
       ],
       seed:[ {id:61,title:"某 KOL 开始奶 AI Agent",content:"粉丝量 50w+，历史准确率不错，可以关注相关代币。",mood:"极度看好",date:isoToday(),source:"Twitter",confidence:"高"} ] },
-    { key:"kol", name:"KOL 监控", icon:"user", tint:"#f6ece9", color:"var(--danger)", type:"note", desc:"监控关键意见领袖的动态与喊单",
+    { key:"kol", name:"KOL 监控", icon:"user", tint:"color-mix(in srgb, var(--danger) 16%, transparent)", color:"var(--danger)", type:"note", desc:"监控关键意见领袖的动态与喊单",
       moods:["喊单","分析","预警","段子"],
       fields:[
         { key:"platform", label:"平台", type:"select", options:["Twitter","Telegram","Discord","YouTube","播客"] },
@@ -697,8 +685,7 @@ const store = {
 let data = store.load();
 let view = "home";
 let searchQ = "";
-let pomo = { running:false, remain:25*60, total:25*60 };   // 番茄钟状态（内存态，跨渲染保留）
-let clockTimer = null;                                       // 全局秒级心跳（时钟 + 番茄钟）
+let clockTimer = null;                                       // 全局秒级心跳（时钟）
 function persist(){ store.save(); render(); }
 function pad2(n){ return String(n).padStart(2,"0"); }
 
@@ -711,22 +698,10 @@ function weekDates(){
 function weekNum(){ const n=new Date(); const s=new Date(n.getFullYear(),0,1);
   return Math.ceil(((n-s)/86400000 + s.getDay()+1)/7); }
 
-/* 秒级心跳：更新时钟；番茄钟运行时倒计时 */
+/* 秒级心跳：更新时钟 */
 function startClock(){ if(clockTimer) return; clockTimer=setInterval(heartbeat,1000); heartbeat(); }
 function heartbeat(){
   const el=$("#clk"); if(el){ const n=new Date(); el.textContent=`${pad2(n.getHours())}:${pad2(n.getMinutes())}:${pad2(n.getSeconds())}`; }
-  if(pomo.running){ pomo.remain--; if(pomo.remain<=0) completePomo(); pomoUpdate(); }
-}
-function pomoUpdate(){
-  const t=$("#pomo-time"); if(t){ t.textContent=`${pad2(Math.floor(pomo.remain/60))}:${pad2(pomo.remain%60)}`; }
-  const fg=$("#pomo-fg"); if(fg){ const r=64,c=2*Math.PI*r; fg.style.strokeDashoffset=c*(1-pomo.remain/pomo.total); }
-  const st=$("#pomo-status"); if(st) st.textContent=pomo.running?"专注中":"已暂停";
-  const b=$("#pomo-toggle"); if(b) b.textContent=pomo.running?"暂停":"开始";
-}
-function completePomo(){ pomo.running=false; pomo.remain=pomo.total;
-  data.__pomo=data.__pomo||{count:0,min:0}; data.__pomo.count++; data.__pomo.min+=Math.round(pomo.total/60); store.save();
-  const c=$("#pomo-count"); if(c) c.textContent=data.__pomo.count;
-  const mn=$("#pomo-min"); if(mn) mn.textContent=data.__pomo.min;
 }
 
 /* ---------- ring svg ---------- */
@@ -823,7 +798,7 @@ function habitTileHTML(){
       return `<td class="${i===tIdx?'tdcol':''}"><span class="hcell js-habit ${on?'on':'off'}" data-id="${x.id}" data-day="${day}">${chk}</span></td>`; }).join("");
     const rate=Math.round(cnt/7*100);
     return `<tr><td class="hn"><span class="hdot" style="background:${palette[ri%palette.length]}"></span>${esc(x.title)}</td>${cells}<td class="hrate" style="color:${palette[ri%palette.length]}">${rate}%</td></tr>`;
-  }).join("") : `<tr><td colspan="9" style="text-align:center;color:var(--text-tertiary);font-size:12.5px;padding:18px 0">还没有习惯，去「习惯打卡」添加吧</td></tr>`;
+  }).join("") : `<tr><td colspan="9" style="text-align:center;color:var(--text-tertiary);font-size:12.5px;padding:18px 0">还没有纪律项，去「每日纪律」添加吧</td></tr>`;
   return `<div class="tile b7"><div class="tile-h"><span class="tic">${icon("leaf",16)}</span><div class="tt"><span class="en">HABIT TRACKER</span><span class="zh">本周习惯追踪表</span></div><span class="r js-open" data-open="checkin">本周 · 周${dnames[((new Date().getDay())+6)%7]}</span></div>
     <table class="habit-tb"><thead><tr><th class="hh">习惯</th>${ths}<th class="hr">完成率</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
@@ -842,28 +817,33 @@ function todoTileHTML(){
     <div class="tk-list">${list}</div></div>`;
 }
 
-/* 专注番茄钟（暗色炫酷卡 · 实时倒计时） */
-function pomoTileHTML(){
-  const p=data.__pomo||{count:0,min:0};
-  const r=64,c=2*Math.PI*r,off=c*(1-pomo.remain/pomo.total);
-  return `<div class="pomo b4"><div><div class="pen">POMODORO · 25 / 5</div><div class="pzh">专注番茄钟</div></div>
-    <div class="ring-wrap"><svg width="150" height="150" viewBox="0 0 150 150">
-      <circle cx="75" cy="75" r="${r}" fill="none" stroke="rgba(244,243,240,.14)" stroke-width="7"/>
-      <circle id="pomo-fg" cx="75" cy="75" r="${r}" fill="none" stroke="#e6b877" stroke-width="7" stroke-linecap="round"
-        stroke-dasharray="${c}" stroke-dashoffset="${off}"/></svg>
-      <div class="ptime"><span class="t" id="pomo-time">${pad2(Math.floor(pomo.remain/60))}:${pad2(pomo.remain%60)}</span><span class="s" id="pomo-status">${pomo.running?'专注中':'保持专注'}</span></div></div>
-    <div class="pctl"><button class="primary" id="pomo-toggle">${pomo.running?'暂停':'开始'}</button><button id="pomo-reset">重置</button></div>
-    <div class="pstats"><div class="ps"><div class="pv" id="pomo-count">${p.count}</div><div class="pl">今日番茄</div></div>
-      <div class="ps"><div class="pv" id="pomo-min">${p.min}</div><div class="pl">专注分钟</div></div>
-      <div class="ps"><div class="pv">${p.count+ (pomo.running?1:0)}</div><div class="pl">轮次</div></div></div></div>`;
+/* KOL 监控：kol (note) 动态速览 */
+function kolTileHTML(){
+  const all=data.kol||[];
+  const moodCol={ "喊单":"var(--module-2)", "分析":"var(--module-3)", "预警":"var(--danger)", "段子":"var(--module-5)" };
+  const accCol={ "低":"var(--text-tertiary)", "一般":"var(--module-3)", "高":"var(--module-1)", "极高":"var(--module-2)" };
+  const avaPal=["var(--module-2)","var(--module-3)","var(--module-1)","var(--module-4)","var(--module-5)"];
+  const rows=all.length? all.map((x,i)=>{
+    const col=moodCol[x.mood]||"var(--module-3)"; const ava=avaPal[i%avaPal.length];
+    const initial=(x.title||"?").replace(/^@/,"").slice(0,1).toUpperCase();
+    const acc=x.accuracy?`<span class="kol-plat" style="color:${accCol[x.accuracy]||"var(--text-tertiary)"}">准确率 ${esc(x.accuracy)}</span>`:"";
+    return `<div class="kol-row js-open" data-open="kol">
+      <span class="kava" style="background:${ava}">${esc(initial)}</span>
+      <div class="kol-body"><div class="kol-name">${esc(x.title)}</div><div class="kol-desc">${esc(x.content||"")}</div></div>
+      <div class="kol-meta"><span class="badge" style="background:${col}22;color:${col}"><span class="dot"></span>${esc(x.mood||"观察")}</span>${acc}</div></div>`;
+  }).join("") : `<div class="focus-empty">还没有监控对象，去「KOL 监控」添加吧</div>`;
+  const shout=all.filter(x=>x.mood==="喊单").length, warn=all.filter(x=>x.mood==="预警").length;
+  return `<div class="tile b8"><div class="tile-h"><span class="tic">${icon("user",16)}</span><div class="tt"><span class="en">KOL MONITOR</span><span class="zh">KOL 监控</span></div>
+    <span class="r js-open" data-open="kol">喊单 ${shout} · 预警 ${warn} · 共 ${all.length}</span></div>
+    <div class="kol-list">${rows}</div></div>`;
 }
 
-/* 心情趋势折线（复用 trend） */
+/* 市场情绪趋势折线（复用 trend） */
 function trendTileHTML(){
   const series=CONFIG.trend.series(data); const has=series.length>0;
   const avg=has?Math.round(series.reduce((a,b)=>a+b,0)/series.length):0;
-  const body=has?trendSVG(series):`<div class="trend-empty">${icon("chart",26)}<span>暂无本周数据 · 在洞察中记录每日状态</span></div>`;
-  return `<div class="tile b8"><div class="tile-h"><span class="tic">${icon("chart",16)}</span><div class="tt"><span class="en">MOOD TREND · 近 7 天</span><span class="zh">${CONFIG.trend.title}</span></div>${has?`<span class="r">均 ${avg}${CONFIG.trend.unit}</span>`:''}</div>
+  const body=has?trendSVG(series):`<div class="trend-empty">${icon("chart",26)}<span>暂无本周数据 · 在洞察中记录每日情绪</span></div>`;
+  return `<div class="tile b4"><div class="tile-h"><span class="tic">${icon("chart",16)}</span><div class="tt"><span class="en">SENTIMENT · 近 7 天</span><span class="zh">${CONFIG.trend.title}</span></div>${has?`<span class="r">均 ${avg}${CONFIG.trend.unit}</span>`:''}</div>
     ${body}${has?`<div class="trend-x"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>`:''}</div>`;
 }
 
@@ -898,7 +878,7 @@ function booksTileHTML(){
 /* 叙事驱动库：narrative (note) 阶段分布 */
 function goalsTileHTML(){
   const all=data.narrative||[];
-  const stageMap={}; all.forEach(x=>{ const s=x.stage||"未知"; stageMap[s]=(stageMap[s]||0)+1; });
+  const stageMap={}; all.forEach(x=>{ const s=x.mood||"未知"; stageMap[s]=(stageMap[s]||0)+1; });
   const stages=Object.entries(stageMap).sort((a,b)=>b[1]-a[1]);
   const palette=["var(--module-3)","var(--module-1)","var(--module-2)","var(--module-4)","var(--module-5)","var(--accent)","var(--danger)"];
   const rows=stages.length? stages.map((s,i)=>{ const col=palette[i%palette.length];
@@ -933,14 +913,14 @@ function renderHome(){
       ${overviewTileHTML()}
     </div>
 
-    ${grp("习惯与待办","HABITS&nbsp;&nbsp;&&nbsp;&nbsp;TASKS")}
+    ${grp("盯盘与纪律","SCAN&nbsp;&nbsp;&&nbsp;&nbsp;DISCIPLINE")}
     <div class="bento">${habitTileHTML()}${todoTileHTML()}</div>
 
-    ${grp("专注与状态","FOCUS&nbsp;&nbsp;&&nbsp;&nbsp;MOOD")}
-    <div class="bento">${pomoTileHTML()}${trendTileHTML()}</div>
+    ${grp("叙事与情绪","NARRATIVE&nbsp;&nbsp;&&nbsp;&nbsp;SENTIMENT")}
+    <div class="bento">${goalsTileHTML()}${kolTileHTML()}</div>
 
-    ${grp("收支与成长","MONEY&nbsp;&nbsp;&&nbsp;&nbsp;GROWTH")}
-    <div class="bento">${spendTileHTML()}${booksTileHTML()}${goalsTileHTML()}</div>`;
+    ${grp("持仓与情报","POSITION&nbsp;&nbsp;&&nbsp;&nbsp;INTEL")}
+    <div class="bento">${spendTileHTML()}${booksTileHTML()}${trendTileHTML()}</div>`;
   wireHome();
   startClock();
 }
@@ -964,9 +944,6 @@ function wireHome(){
     e.stopPropagation(); const x=(data.checkin||[]).find(i=>i.id==el.dataset.id); if(!x) return;
     const d=el.dataset.day; x.log=x.log||{}; x.log[d]?delete x.log[d]:x.log[d]=true; persist();
   });
-  // 番茄钟控制
-  const tg=$("#pomo-toggle"); if(tg) tg.onclick=()=>{ pomo.running=!pomo.running; pomoUpdate(); };
-  const rs=$("#pomo-reset"); if(rs) rs.onclick=()=>{ pomo.running=false; pomo.remain=pomo.total; pomoUpdate(); };
 }
 
 /* ---------- INSIGHT ---------- */
@@ -1223,24 +1200,24 @@ function openEditor(key,item){
       <div class="field"><label>优先级</label><div class="seg" id="f-prio">${(m.priorities||[]).map(p=>`<div class="opt ${p.key===d.priority?'on':''}" data-v="${p.key}">${p.label}</div>`).join("")}</div></div>
       <div class="field"><label>备注</label><textarea id="f-note" placeholder="补充说明">${esc(d.note||'')}</textarea></div>`;
   } else if(m.type==="checkin"){
-    fields=`<div class="field"><label>打卡项</label><input id="f-title" value="${attr(d.title)}" placeholder="例如：喝够 8 杯水"/></div>
+    fields=`<div class="field"><label>打卡项</label><input id="f-title" value="${attr(d.title)}" placeholder="例如：完成链上数据扫描"/></div>
       <p class="sub" style="margin:0">保存后可在卡片点击左侧方块打卡；连续天数自动统计，每天从零开始。</p>`;
   } else if(m.type==="progress"){
-    fields=`<div class="field"><label>名称</label><input id="f-title" value="${attr(d.title)}" placeholder="书名 / 目标"/></div>
+    fields=`<div class="field"><label>名称</label><input id="f-title" value="${attr(d.title)}" placeholder="标的 / 目标"/></div>
       <div class="frow"><div class="field"><label>当前</label><input id="f-cur" type="number" value="${d.current??0}"/></div>
       <div class="field"><label>目标</label><input id="f-tgt" type="number" value="${d.target??1}"/></div>
       <div class="field"><label>单位</label><input id="f-unit" value="${attr(d.unit||m.unit||'')}"/></div></div>
-      <div class="field"><label>摘录 / 想法</label><textarea id="f-note" placeholder="随手记">${esc(d.note||'')}</textarea></div>`;
+      <div class="field"><label>备注 / 想法</label><textarea id="f-note" placeholder="随手记">${esc(d.note||'')}</textarea></div>`;
   } else if(m.type==="finance"){
     fields=`<div class="field"><label>类型</label><div class="seg" id="f-ftype">
         <div class="opt ${d.type!=='income'?'on':''}" data-v="expense">支出</div><div class="opt ${d.type==='income'?'on':''}" data-v="income">收入</div></div></div>
-      <div class="frow"><div class="field"><label>项目</label><input id="f-title" value="${attr(d.title)}" placeholder="午餐 / 稿费"/></div>
+      <div class="frow"><div class="field"><label>项目</label><input id="f-title" value="${attr(d.title)}" placeholder="买入 $ALPHA / 卖出止盈"/></div>
       <div class="field"><label>金额 ¥</label><input id="f-amt" type="number" value="${d.amount??''}" placeholder="0"/></div></div>
       <div class="field"><label>分类</label><div class="seg" id="f-cat">${(m.categories||[]).map(c=>`<div class="opt ${c===d.category?'on':''}" data-v="${attr(c)}" style="flex:0 0 auto;min-width:auto">${esc(c)}</div>`).join("")}</div></div>
       <div class="field"><label>日期</label><input id="f-date" type="date" value="${d.date||isoToday()}"/></div>`;
   } else {
     fields=`<div class="field"><label>标题</label><input id="f-title" value="${attr(d.title)}" placeholder="给这条起个名"/></div>
-      ${(m.moods&&m.moods.length)?`<div class="field"><label>标签 / 心情</label><div class="seg" id="f-mood">${m.moods.map(md=>`<div class="opt ${md===d.mood?'on':''}" data-v="${attr(md)}" style="flex:0 0 auto;min-width:auto">${md}</div>`).join("")}</div></div>`:''}
+      ${(m.moods&&m.moods.length)?`<div class="field"><label>标签 / 分类</label><div class="seg" id="f-mood">${m.moods.map(md=>`<div class="opt ${md===d.mood?'on':''}" data-v="${attr(md)}" style="flex:0 0 auto;min-width:auto">${md}</div>`).join("")}</div></div>`:''}
       <div class="field"><label>内容</label><textarea id="f-content" placeholder="写点什么…">${esc(d.content||'')}</textarea></div>
       <div class="field"><label>日期</label><input id="f-date" type="date" value="${d.date||isoToday()}"/></div>`;
   }
