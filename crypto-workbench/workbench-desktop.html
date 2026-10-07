@@ -91,9 +91,11 @@
   .sidebar .nav { flex: 1; overflow-y: auto; padding: 6px 12px 12px; }
   .sidebar .nav::-webkit-scrollbar { width: 6px; }
   .sidebar .nav::-webkit-scrollbar-thumb { background: var(--drawer-text-mute); border-radius: 6px; }
-  .navi { display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-radius: 11px; cursor: pointer;
-    font-size: 14px; font-weight: 500; color: color-mix(in srgb, var(--drawer-text) 82%, transparent); transition: background .15s; margin-bottom: 2px; }
+  .navi { display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-radius: 11px; cursor: pointer; width: 100%;
+    font-size: 14px; font-weight: 500; color: color-mix(in srgb, var(--drawer-text) 82%, transparent); transition: background .15s; margin-bottom: 2px;
+    border:none; background:none; font-family:var(--font); text-align:left; }
   .navi:hover { background: var(--drawer-hover); }
+  .navi:focus-visible { outline:2px solid var(--accent); outline-offset:-3px; }
   .navi.active { background: var(--drawer-active); color: var(--drawer-text); font-weight: 700; }
   .navi svg { color: var(--drawer-text-mute); flex: 0 0 auto; }
   .navi.active svg { color: var(--drawer-text); }
@@ -385,12 +387,12 @@
   .ov2-body { display:grid; grid-template-columns:1fr 300px; gap:22px; flex:1; align-items:stretch; }
   .ov2-body .rings { align-content:center; }
   .ov2-side { position:relative; overflow:hidden; border-radius:var(--radius-card);
-    background:linear-gradient(150deg,#33322e 0%,#232220 62%,#1b1a18 100%); box-shadow:var(--shadow-overlay);
+    background:linear-gradient(150deg,var(--drawer-bg-top) 0%,var(--drawer-bg) 62%,var(--page-bg) 100%); box-shadow:var(--shadow-overlay);
     padding:20px; display:flex; flex-direction:column; justify-content:space-between; gap:12px; }
   .ov2-side::before { content:""; position:absolute; width:190px; height:190px; border-radius:50%; right:-70px; top:-80px;
-    background:radial-gradient(circle,rgba(95,122,153,.4),transparent 70%); pointer-events:none; }
+    background:radial-gradient(circle,color-mix(in srgb,var(--module-3) 40%,transparent),transparent 70%); pointer-events:none; }
   .ov2-side::after { content:""; position:absolute; width:150px; height:150px; border-radius:50%; left:-55px; bottom:-70px;
-    background:radial-gradient(circle,rgba(189,138,78,.32),transparent 70%); pointer-events:none; }
+    background:radial-gradient(circle,color-mix(in srgb,var(--module-2) 32%,transparent),transparent 70%); pointer-events:none; }
   .ov2-stat { position:relative; z-index:1; display:flex; align-items:center; gap:13px; cursor:pointer;
     padding:12px 4px; border-radius:var(--radius-tile); transition:background .15s; }
   .ov2-stat:hover { background:rgba(244,243,240,.06); }
@@ -404,12 +406,12 @@
 
   /* 大时钟卡（暗色·点缀光晕） */
   .clock-card { position:relative; overflow:hidden; border-radius:var(--radius-sheet);
-    background:linear-gradient(140deg,#33322e 0%,#232220 60%,#1c1b19 100%); color:#f4f3f0;
+    background:linear-gradient(140deg,var(--drawer-bg-top) 0%,var(--drawer-bg) 60%,var(--page-bg) 100%); color:var(--drawer-text);
     padding:26px 28px; box-shadow:var(--shadow-overlay); display:flex; flex-direction:column; justify-content:space-between; min-height:196px; }
   .clock-card::before { content:""; position:absolute; width:220px; height:220px; border-radius:50%; right:-70px; top:-90px;
-    background:radial-gradient(circle,rgba(189,138,78,.35),transparent 70%); }
+    background:radial-gradient(circle,color-mix(in srgb,var(--accent) 35%,transparent),transparent 70%); }
   .clock-card::after { content:""; position:absolute; width:170px; height:170px; border-radius:50%; left:-60px; bottom:-80px;
-    background:radial-gradient(circle,rgba(111,143,106,.28),transparent 70%); }
+    background:radial-gradient(circle,color-mix(in srgb,var(--module-3) 30%,transparent),transparent 70%); }
   .clock-card > * { position:relative; z-index:1; }
   .clock-card .hi { font-size:24px; font-weight:800; letter-spacing:-.02em; }
   .clock-card .sub { font-size:12.5px; opacity:.62; margin-top:5px; max-width:230px; line-height:1.5; }
@@ -1296,10 +1298,10 @@ function render(){ if(view==="home") renderHome(); else if(view==="insight") ren
 
 function buildNav(){
   $("#brandName").textContent=CONFIG.owner; $("#brandSlogan").textContent=CONFIG.slogan;
-  const html=[`<div class="navi" data-go="home">${icon("home",19)}首页</div>`,
+  const html=[`<button type="button" class="navi" data-go="home">${icon("home",19)}首页</button>`,
     `<div class="nav-sep">功能模块</div>`]
-    .concat(CONFIG.modules.map(m=>`<div class="navi" data-go="${m.key}">${icon(m.icon,19)}${m.name}</div>`))
-    .concat([`<div class="nav-sep">统计</div>`, `<div class="navi" data-go="insight">${icon("chart",19)}洞察复盘</div>`]);
+    .concat(CONFIG.modules.map(m=>`<button type="button" class="navi" data-go="${m.key}">${icon(m.icon,19)}${m.name}</button>`))
+    .concat([`<div class="nav-sep">统计</div>`, `<button type="button" class="navi" data-go="insight">${icon("chart",19)}洞察复盘</button>`]);
   $("#nav").innerHTML=html.join("");
   $("#nav").querySelectorAll("[data-go]").forEach(el=>el.onclick=()=>go(el.dataset.go));
   renderNavActive();

@@ -257,8 +257,10 @@
   .nav { position: fixed; left: 50%; transform: translateX(-50%); bottom: 0; width: 100%; max-width: 480px; height: var(--nav-h);
     background: color-mix(in srgb, var(--surface-card) 92%, transparent); backdrop-filter: blur(14px); border-top: 1px solid var(--border);
     display: grid; grid-template-columns: repeat(3,1fr); align-items: center; z-index: 30; padding-bottom: env(safe-area-inset-bottom); }
-  .nav .n { display:flex; flex-direction:column; align-items:center; gap: 4px; cursor:pointer; color: var(--text-tertiary); font-size: 10px; font-weight: 500; }
+  .nav .n { display:flex; flex-direction:column; align-items:center; justify-content:center; gap: 4px; cursor:pointer; color: var(--text-tertiary);
+    font-size: 10px; font-weight: 500; border:none; background:none; font-family:var(--font); padding:0; -webkit-tap-highlight-color:transparent; }
   .nav .n.active { color: var(--accent); font-weight: 700; }
+  .nav .n:focus-visible { outline:2px solid var(--accent); outline-offset:-4px; border-radius:10px; }
 
   /* ---------- drawer ---------- */
   .scrim { position: fixed; inset: 0; background: color-mix(in srgb, var(--text) 42%, transparent); backdrop-filter: blur(2px); z-index: 40; opacity:0; pointer-events:none; transition: opacity .22s; }
@@ -279,7 +281,9 @@
   .drawer .dclose { position:absolute; top:18px; right:16px; width:32px;height:32px;border-radius:var(--radius-tile); border:none; cursor:pointer;
     background: var(--drawer-hover); color:var(--drawer-text); display:grid; place-items:center; }
   .drawer .dsep { height:1px; background: var(--drawer-active); margin: 6px 22px 8px; }
-  .drawer .ditem { display:flex; align-items:center; gap: 13px; padding: 12px 22px; cursor:pointer; font-size: 15px; font-weight: 500; color: color-mix(in srgb, var(--drawer-text) 82%, transparent); }
+  .drawer .ditem { display:flex; align-items:center; gap: 13px; padding: 12px 22px; cursor:pointer; font-size: 15px; font-weight: 500; color: color-mix(in srgb, var(--drawer-text) 82%, transparent);
+    width:100%; border:none; background:none; font-family:var(--font); text-align:left; }
+  .drawer .ditem:focus-visible { outline:2px solid var(--accent); outline-offset:-3px; }
   .drawer .ditem svg { color: var(--drawer-text-mute); }
   .drawer .ditem.active { background: var(--drawer-active); color:var(--drawer-text); font-weight: 700; }
   .drawer .ditem.active svg { color:var(--drawer-text); }
@@ -379,11 +383,11 @@
 </div>
 
 <!-- bottom nav -->
-<div class="nav" id="nav">
-  <div class="n active" data-nav="home"></div>
-  <div class="n" data-nav="drawer"></div>
-  <div class="n" data-nav="insight"></div>
-</div>
+<nav class="nav" id="nav" aria-label="主导航">
+  <button type="button" class="n active" data-nav="home"></button>
+  <button type="button" class="n" data-nav="drawer"></button>
+  <button type="button" class="n" data-nav="insight"></button>
+</nav>
 
 <!-- drawer -->
 <div class="scrim" id="scrim"></div>
@@ -1015,7 +1019,7 @@ function openEditor(key, item){
     fields=`<div class="field"><label>类型</label><div class="seg" id="f-ftype">
         <div class="opt ${d.type!=='income'?'on':''}" data-v="expense">支出</div>
         <div class="opt ${d.type==='income'?'on':''}" data-v="income">收入</div></div></div>
-      <div class="frow"><div class="field"><label>项目</label><input id="f-title" value="${attr(d.title)}" placeholder="午餐 / 稿费"/></div>
+      <div class="frow"><div class="field"><label>项目</label><input id="f-title" value="${attr(d.title)}" placeholder="买入 $ALPHA / 卖出止盈"/></div>
       <div class="field"><label>金额 ¥</label><input id="f-amt" type="number" value="${d.amount??''}" placeholder="0"/></div></div>
       <div class="field"><label>分类</label><div class="seg" style="flex-wrap:wrap" id="f-cat">${(m.categories||[]).map(c=>`<div class="opt ${c===d.category?'on':''}" data-v="${attr(c)}" style="flex:0 0 auto">${esc(c)}</div>`).join("")}</div></div>
       <div class="field"><label>日期</label><input id="f-date" type="date" value="${d.date||isoToday()}"/></div>`;
@@ -1125,9 +1129,9 @@ function render(){
 function buildDrawer(){
   $("#drawerName").textContent=CONFIG.owner;
   $("#drawerSlogan").textContent=CONFIG.slogan;
-  const items=[`<div class="ditem" data-go="home">${icon("home",20)}首页</div>`]
-    .concat(CONFIG.modules.map(m=>`<div class="ditem" data-go="${m.key}">${icon(m.icon,20)}${m.name}</div>`))
-    .concat([`<div class="ditem" data-go="insight">${icon("chart",20)}洞察</div>`]);
+  const items=[`<button type="button" class="ditem" data-go="home">${icon("home",20)}首页</button>`]
+    .concat(CONFIG.modules.map(m=>`<button type="button" class="ditem" data-go="${m.key}">${icon(m.icon,20)}${m.name}</button>`))
+    .concat([`<button type="button" class="ditem" data-go="insight">${icon("chart",20)}洞察</button>`]);
   $("#drawerList").innerHTML=items.join("");
   $("#drawerList").querySelectorAll("[data-go]").forEach(el=>el.onclick=()=>go(el.dataset.go));
 }
